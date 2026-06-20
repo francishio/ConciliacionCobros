@@ -62,6 +62,11 @@ no cambies la arquitectura sin alinearla primero.
 
 - **RLS no lo maneja Prisma.** Las políticas de Row-Level Security van en una
   migración SQL aparte, sobre `tenant_id`. Toda query respeta el aislamiento por tenant.
+- **Dos clientes Prisma:** `db` (rol `app_runtime`, RLS aplicada) para datos de un
+  tenant, siempre vía `withTenant(tenantId, fn)` que setea `app.current_tenant` por
+  transacción; `adminDb` (rol `neondb_owner`, bypassa RLS) SOLO para operaciones
+  cross-tenant deliberadas (enumerar tenants, seed, mantenimiento). Nunca servir datos
+  de un tenant con `adminDb`. `tenantId` está denormalizado en todas las tablas hijas.
 - **Idempotencia de ingesta**: `@@unique([tenantId, proveedor, idExterno])` en
   `Transaccion`. Reprocesar un reporte hace upsert, nunca duplica.
 - **`raw` (jsonb)**: se guarda siempre el payload crudo del proveedor. No descartar
@@ -74,7 +79,8 @@ no cambies la arquitectura sin alinearla primero.
 
 - [x] Documentación de diseño
 - [x] `prisma/schema.prisma` (modelo canónico v1)
-- [ ] Migración inicial + políticas RLS
+- [x] Scaffolding (worker Node+TS, Prisma 5.22, Neon, `withTenant`/`adminDb`)
+- [x] Migración inicial + políticas RLS (rol `app_runtime`, aislamiento por tenant verificado)
 - [ ] Adaptadores de ingesta (HIOPOS, Mercado Pago, Payway)
 - [ ] Motor de matching (determinístico + fuzzy)
 - [ ] Write-back de estados a HIOPOS

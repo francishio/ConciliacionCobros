@@ -1,5 +1,8 @@
-// Cliente Prisma como singleton (mismo patrón probado en gastronomia-app).
-// Evita múltiples instancias en desarrollo por el hot-reload.
+// Cliente Prisma de runtime (data plane). Conecta como app_runtime vía
+// DATABASE_URL, así que TODAS sus queries quedan sujetas a RLS: hay que
+// setear el contexto del tenant con withTenant() antes de tocar datos.
+// Mismo patrón singleton probado en gastronomia-app.
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {

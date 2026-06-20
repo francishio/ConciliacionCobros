@@ -11,7 +11,11 @@ function requireEnv(name: string): string {
 }
 
 export const env = {
+  // Runtime / data plane — rol app_runtime (RLS aplicada)
   databaseUrl: requireEnv('DATABASE_URL'),
+  // Migraciones — neondb_owner, conexión directa
   directUrl: requireEnv('DIRECT_URL'),
+  // Control plane / admin (cross-tenant) — neondb_owner, bypassa RLS
+  adminDatabaseUrl: requireEnv('ADMIN_DATABASE_URL'),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 } as const
