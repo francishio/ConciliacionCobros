@@ -1,0 +1,88 @@
+# ConciliacionCobros — Contexto para Claude Code
+
+Este archivo te da el contexto del proyecto. Leelo al inicio de cada sesión.
+
+## Qué es
+
+Solución para conciliar los cobros registrados en **HIOPOS** contra las plataformas
+de cobro (**Mercado Pago** y **Payway**), escalable a múltiples clientes (multi-tenant).
+
+La conciliación tiene **dos etapas encadenadas**:
+
+1. **Operativa** — cobro de HIOPOS ↔ transacción autorizada en el procesador.
+2. **Financiera** — transacción ↔ liquidación efectiva en el banco (aranceles,
+   retenciones, cuotas diferidas, contracargos).
+
+## Stack
+
+- **PostgreSQL** en Neon (fuente de verdad)
+- **Prisma** (ORM: schema + migraciones + cliente tipado)
+- **Node.js + TypeScript**
+- **Scheduler**: cron + cola (worker dedicado; NO funciones serverless con timeout corto)
+
+Reutilizar la versión y el setup de Prisma ya probados en el proyecto `gastronomia-app`.
+
+## Estructura del repo
+
+```
+docs/      → documentación de diseño (arquitectura y modelo de datos)
+prisma/    → schema.prisma y migraciones
+```
+
+## Documentos de referencia (leer ANTES de proponer cambios)
+
+- `docs/arquitectura-conciliacion-v1.md` — arquitectura en capas, multi-tenancy,
+  ritmo, matching, presentación.
+- `docs/modelo-datos-conciliacion-v1.md` — modelo canónico, entidades, máquinas de
+  estado, índices.
+
+Si una propuesta contradice estos documentos, marcalo explícitamente antes de avanzar;
+no cambies la arquitectura sin alinearla primero.
+
+## Cómo quiero que trabajes
+
+- En **español rioplatense**, técnico y directo.
+- **Alineá con la documentación antes de proponer cambios.**
+- Ejemplos de código **completos**, no fragmentos sueltos.
+- Preguntá si una decisión de diseño no está clara, en vez de asumir.
+
+## Decisiones de arquitectura ya tomadas (no relitigar)
+
+- **Neon es el sistema de registro.** HIOPOS es solo capa de presentación: se le hace
+  write-back de dos campos de estado por cobro (`estadoOp`, `estadoFin`), best-effort
+  e idempotente. El sistema funciona completo aunque ese write-back falle.
+- **Matching mixto por cliente**: cascada determinístico → fuzzy, según el
+  `MatchingProfile` del tenant. Nunca forzar un match fuzzy ambiguo: va a `Excepcion`.
+- **Ritmo**: operativa en batch diario (post-cierre); financiera en ventana móvil
+  60–90 días, re-disparada al llegar cada liquidación.
+- **Retenciones**: tabla `Retencion` por tipo impositivo + total denormalizado en
+  `LiquidacionLinea.retenciones`.
+
+## Restricciones técnicas críticas
+
+- **RLS no lo maneja Prisma.** Las políticas de Row-Level Security van en una
+  migración SQL aparte, sobre `tenant_id`. Toda query respeta el aislamiento por tenant.
+- **Idempotencia de ingesta**: `@@unique([tenantId, proveedor, idExterno])` en
+  `Transaccion`. Reprocesar un reporte hace upsert, nunca duplica.
+- **`raw` (jsonb)**: se guarda siempre el payload crudo del proveedor. No descartar
+  datos de origen.
+- **`estadoOp` / `estadoFin` son proyección denormalizada**: la verdad está en `Match`
+  y `LiquidacionLinea`. Recalcular con una función dedicada cuando cambia una unión, y
+  ese cambio dispara el write-back a HIOPOS.
+
+## Estado actual
+
+- [x] Documentación de diseño
+- [x] `prisma/schema.prisma` (modelo canónico v1)
+- [ ] Migración inicial + políticas RLS
+- [ ] Adaptadores de ingesta (HIOPOS, Mercado Pago, Payway)
+- [ ] Motor de matching (determinístico + fuzzy)
+- [ ] Write-back de estados a HIOPOS
+- [ ] Web app de conciliación
+
+## Convenciones de código
+
+- Identificadores de dominio en español, siguiendo el modelo canónico (`Cobro`,
+  `Transaccion`, `Liquidacion`, etc.).
+- Comentarios en español.
+- TypeScript estricto.
