@@ -60,6 +60,16 @@ distintos por proveedor**:
 *webhook push* y *archivo (CSV/SFTP)*, según el proveedor. Por eso el patrón es
 **adaptadores con una interfaz común**.
 
+**Proveedores adicionales (2026-06-20):**
+
+- **Fiserv (Clover):** se ingiere por **API o archivo**, configurable por tenant
+  (ambos modos producen el mismo registro normalizado; solo cambia el origen).
+  Clave de match a confirmar por cliente.
+- **Banco (extracto):** fuente de la **Fase 2** financiera (ver §11). Ingesta por
+  **upload manual** del archivo que el cliente descarga del homebanking.
+
+Sumar un procesador = un adaptador nuevo sobre la misma interfaz; el motor no cambia.
+
 ---
 
 ## 4. Arquitectura en capas
@@ -194,3 +204,36 @@ Dos niveles complementarios:
   impositivo en su propia tabla.
 - **Refresh del Project:** confirmar cómo se actualiza el conocimiento al conectar
   GitHub (depende del plan).
+
+---
+
+## 11. Conciliación financiera en dos tramos (Fase 2 — diferida)
+
+La conciliación financiera (§2, punto 2) se refina en **dos tramos encadenados**,
+porque "lo que el procesador dice que liquidó" y "lo que entró al banco" son
+controles distintos:
+
+1. **Tramo 1 — transacción ↔ settlement del procesador** (Fiserv / MP / Payway).
+   Detecta diferencias de arancel, retenciones, cuotas no acreditadas y
+   contracargos. Es lo que ya modela `Transaccion ↔ LiquidacionLinea`.
+   **Fase 1 (en curso).**
+
+2. **Tramo 2 — settlement del procesador ↔ acreditación real en el banco**
+   (extracto bancario). Confirma que la plata efectivamente entró; atrapa
+   liquidaciones informadas que no acreditaron, diferencias de fecha y
+   **retenciones bancarias** (SIRCREB, percepciones de IIBB) que el procesador no
+   informa. **Fase 2 — diferida.**
+
+**Diseño previsto para la Fase 2 (cuando se retome):**
+
+- Ingesta del extracto por **upload manual** (no cron) → se engancha con la web app.
+- **Perfil de importación bancaria por tenant/banco** (mapeo de columnas
+  configurable), porque cada banco exporta distinto.
+- **Idempotencia sin ID estable:** las líneas de extracto no traen identificador,
+  así que el upsert usa una **clave natural / hash** por línea
+  (ej. `fecha + monto + descripción + saldo`) para que el re-upload no duplique.
+- **Match fuzzy a nivel "pila":** una línea global del extracto ("ACRED FISERV $X"
+  de un día) cuadra contra la **suma** de varias líneas de settlement de ese día.
+- **Modelo:** entidad `MovimientoBancario` (línea de extracto) + match
+  `Liquidacion ↔ MovimientoBancario` + sub-estado financiero `CONCILIADO_BANCO`
+  que extiende la máquina de estados de `estado_concil_financiera`.

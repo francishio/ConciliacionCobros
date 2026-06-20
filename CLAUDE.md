@@ -57,6 +57,13 @@ no cambies la arquitectura sin alinearla primero.
   60–90 días, re-disparada al llegar cada liquidación.
 - **Retenciones**: tabla `Retencion` por tipo impositivo + total denormalizado en
   `LiquidacionLinea.retenciones`.
+- **Procesadores soportados**: Mercado Pago (API), Payway (archivo) y **Fiserv/Clover**
+  (API o archivo, configurable por tenant). Sumar uno = nuevo adaptador sobre
+  `IngestaAdapter`; el motor no cambia.
+- **Conciliación financiera en 2 tramos**: tramo 1 = transacción ↔ settlement del
+  procesador (Fase 1, en curso); tramo 2 = settlement ↔ extracto bancario (**Fase 2,
+  diferida**: upload manual del extracto, match fuzzy a nivel pila, retenciones
+  bancarias SIRCREB/IIBB). Ver `docs/arquitectura-conciliacion-v1.md` §11.
 
 ## Restricciones técnicas críticas
 
