@@ -81,7 +81,12 @@ export class HioposBridgeClient {
       method: 'POST',
       headers: { 'x-auth-token': session.authToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        exportationId: String(params.exportationId),
+        // El exportationId numérico debe viajar como número: enviarlo como
+        // string devuelve un body vacío (200 sin contenido).
+        exportationId:
+          typeof params.exportationId === 'string' && /^\d+$/.test(params.exportationId)
+            ? Number(params.exportationId)
+            : params.exportationId,
         startDate: params.startDate,
         endDate: params.endDate,
         filters: params.filters ?? [],
@@ -108,10 +113,24 @@ export class HioposBridgeClient {
   }
 
   // Conveniencia: login → exportar → logout (logout best-effort).
-  async exportar(params: ExportacionParams): Promise<ExportedDoc[]> {
+  // El endpoint a veces devuelve exportedDocs vacío de forma intermitente,
+  // por eso reintenta dentro de la misma sesión.
+  async exportar(
+    params: ExportacionParams,
+    opciones: { reintentosVacios?: number; demoraMs?: number } = {},
+  ): Promise<ExportedDoc[]> {
     const session = await this.login()
     try {
-      return await this.launchExportation(session, params)
+      const max = opciones.reintentosVacios ?? 4
+      const demora = opciones.demoraMs ?? 2000
+      let docs: ExportedDoc[] = []
+      for (let intento = 0; intento <= max; intento++) {
+        docs = await this.launchExportation(session, params)
+        if (docs.length > 0) break
+        // La generación es asíncrona: si vuelve vacío, esperar y reintentar.
+        if (intento < max) await new Promise((r) => setTimeout(r, demora))
+      }
+      return docs
     } finally {
       try {
         await this.logout(session)

@@ -31,16 +31,18 @@ export interface LiquidacionNormalizada {
   lineas: LiquidacionLineaNormalizada[]
 }
 
-// Cobro normalizado (lado HIOPOS, el "ingreso esperado"). Se completa el
-// mapeo desde el export real del Bridge cuando tengamos un sample.
+// Cobro normalizado (lado HIOPOS, el "ingreso esperado").
 export interface CobroNormalizado {
+  origenRef: string // clave natural del origen (idempotencia)
   hioposTicketId: string
   medioPago: string
+  marca: string | null // marca de tarjeta (VISA/MASTERCARD/…)
   importe: string
   cuotas: number
   fechaHora: Date
   codAutorizacion: string | null // clave determinística (si integrado)
   ultimos4: string | null // para matching fuzzy
+  raw: unknown // payload crudo del origen (auditoría)
 }
 
 // Mapeo de columnas para adaptadores por archivo (configurable por tenant):

@@ -131,6 +131,9 @@ model Cobro {
   fechaHora       DateTime
   codAutorizacion String? // clave determinística (si integrado)
   ultimos4        String? // para matching fuzzy
+  marca           String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
+  origenRef       String // clave natural del origen (idempotencia de ingesta)
+  raw             Json? // payload crudo del origen (auditoría)
   estadoOp        EstadoOperativa  @default(PENDIENTE) // proyección → write-back HIOPOS
   estadoFin       EstadoFinanciera @default(PENDIENTE) // proyección → write-back HIOPOS
   creadoEn        DateTime         @default(now())
@@ -139,6 +142,7 @@ model Cobro {
   matches     Match[]
   excepciones Excepcion[]
 
+  @@unique([tenantId, origenRef]) // idempotencia de ingesta
   @@index([tenantId, fechaHora])
   @@index([tenantId, codAutorizacion])
   @@index([tenantId, ultimos4, importe])
@@ -153,6 +157,7 @@ model Transaccion {
   importeBruto      Decimal           @db.Decimal(12, 2)
   cuotas            Int               @default(1)
   externalReference String? // ticket HIOPOS estampado (MP)
+  marca             String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   estado            EstadoTransaccion @default(APROBADA)
   fechaHora         DateTime
   raw               Json // payload crudo del proveedor (auditoría)
