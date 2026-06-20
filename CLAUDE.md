@@ -98,10 +98,21 @@ no cambies la arquitectura sin alinearla primero.
 - [x] `prisma/schema.prisma` (modelo canónico v1)
 - [x] Scaffolding (worker Node+TS, Prisma 5.22, Neon, `withTenant`/`adminDb`)
 - [x] Migración inicial + políticas RLS (rol `app_runtime`, aislamiento por tenant verificado)
-- [ ] Adaptadores de ingesta (HIOPOS, Mercado Pago, Payway)
-- [ ] Motor de matching (determinístico + fuzzy)
+- [~] Adaptadores de ingesta: MP transacciones ✅ (API), Payway transacciones ✅ (CSV),
+  HIOPOS cobros ✅ (Bridge). Falta: MP/Payway liquidaciones (financiera), Clover/Fiserv
+  (esperando credenciales del cliente).
+- [ ] **Motor de matching (determinístico + fuzzy) ← PRÓXIMO PASO**
 - [ ] Write-back de estados a HIOPOS
 - [ ] Web app de conciliación
+
+### Pendientes / notas para retomar
+
+- **Clover/Fiserv**: el cliente (Francisco) está averiguando el acceso/credenciales
+  (API de Clover vs portal). GARDINER procesa con Clover → su operativa es cobros
+  HIOPOS ↔ transacciones Clover.
+- **Header HIOPOS**: confirmar el header del export una vez que pase el rate-limit
+  (Francisco sacó la columna `Cód. Doc.` duplicada; el mapeo por nombre lo tolera igual).
+- **Seguridad**: rotar el password de `neondb_owner` en Neon (quedó expuesto en chat).
 
 ## Convenciones de código
 
