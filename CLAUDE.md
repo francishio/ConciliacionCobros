@@ -64,6 +64,12 @@ no cambies la arquitectura sin alinearla primero.
   procesador (Fase 1, en curso); tramo 2 = settlement ↔ extracto bancario (**Fase 2,
   diferida**: upload manual del extracto, match fuzzy a nivel pila, retenciones
   bancarias SIRCREB/IIBB). Ver `docs/arquitectura-conciliacion-v1.md` §11.
+- **HIOPOS se integra vía Bridge Hioffice** (WebService de ICG), NO PortalRest (corrige
+  arquitectura §4). Flujo: login (`cloudlicense.icg.eu/.../getCustomerWithAuthToken`) →
+  POST `ErpCloud/exportation/launch` (devuelve docs en Base64: JSON/CSV) → logout. El
+  `exportationId` define la exportación que trae los cobros. Cliente:
+  `src/ingesta/hiopos/bridge.ts`. La normalización export→`Cobro` queda pendiente del
+  primer sample real.
 
 ## Restricciones técnicas críticas
 

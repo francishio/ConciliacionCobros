@@ -31,6 +31,18 @@ export interface LiquidacionNormalizada {
   lineas: LiquidacionLineaNormalizada[]
 }
 
+// Cobro normalizado (lado HIOPOS, el "ingreso esperado"). Se completa el
+// mapeo desde el export real del Bridge cuando tengamos un sample.
+export interface CobroNormalizado {
+  hioposTicketId: string
+  medioPago: string
+  importe: string
+  cuotas: number
+  fechaHora: Date
+  codAutorizacion: string | null // clave determinística (si integrado)
+  ultimos4: string | null // para matching fuzzy
+}
+
 // Mapeo de columnas para adaptadores por archivo (configurable por tenant):
 // nombre de la columna en el reporte → campo del modelo normalizado.
 export interface MapeoColumnasTransaccion {
