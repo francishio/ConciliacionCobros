@@ -119,24 +119,26 @@ export class HioposBridgeClient {
     params: ExportacionParams,
     opciones: { reintentosVacios?: number; demoraMs?: number } = {},
   ): Promise<ExportedDoc[]> {
-    const session = await this.login()
-    try {
-      const max = opciones.reintentosVacios ?? 4
-      const demora = opciones.demoraMs ?? 2000
-      let docs: ExportedDoc[] = []
-      for (let intento = 0; intento <= max; intento++) {
-        docs = await this.launchExportation(session, params)
-        if (docs.length > 0) break
-        // La generación es asíncrona: si vuelve vacío, esperar y reintentar.
-        if (intento < max) await new Promise((r) => setTimeout(r, demora))
-      }
-      return docs
-    } finally {
+    const max = opciones.reintentosVacios ?? 4
+    const demora = opciones.demoraMs ?? 2000
+    let docs: ExportedDoc[] = []
+    for (let intento = 0; intento <= max; intento++) {
+      // Login fresco en cada intento: el export vuelve vacío de forma
+      // intermitente según el nodo/sesión, y reintentar con la misma sesión no
+      // recupera. Re-loguear suele caer en un nodo que sí responde.
+      const session = await this.login()
       try {
-        await this.logout(session)
-      } catch {
-        /* best-effort: no romper la ingesta si el logout falla */
+        docs = await this.launchExportation(session, params)
+      } finally {
+        try {
+          await this.logout(session)
+        } catch {
+          /* best-effort */
+        }
       }
+      if (docs.length > 0) break
+      if (intento < max) await new Promise((r) => setTimeout(r, demora))
     }
+    return docs
   }
 }

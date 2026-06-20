@@ -70,8 +70,9 @@ no cambies la arquitectura sin alinearla primero.
   `exportationId` va **numérico** (como string devuelve body vacío). El export
   "ARG - Conciliacion Cobros" trae los cobros en CSV `;`-delimitado, formato AR
   (`.`=miles, `,`=decimal). Es **intermitente** (a veces vuelve vacío) → `exportar()`
-  reintenta con demora. Cliente `bridge.ts` + normalizador posicional `cobros.ts` +
-  `ingestarCobros` (idempotencia por `origenRef` = códDoc|línea|idAutorización).
+  reintenta re-logueando (el vacío depende del nodo/sesión). Cliente `bridge.ts` +
+  normalizador `cobros.ts` (mapeo **por nombre de columna**, no posición: el export
+  cambió de columnas) + `ingestarCobros` (idempotencia por `origenRef` = códDoc|línea|idAutorización).
   GARDINER usa **Clover SDK** como medio de pago (procesador = Clover/Fiserv).
 
 ## Restricciones técnicas críticas
