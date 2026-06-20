@@ -30,3 +30,14 @@ export interface LiquidacionNormalizada {
   netoTotal: string
   lineas: LiquidacionLineaNormalizada[]
 }
+
+// Mapeo de columnas para adaptadores por archivo (configurable por tenant):
+// nombre de la columna en el reporte → campo del modelo normalizado.
+export interface MapeoColumnasTransaccion {
+  idExterno: string
+  importeBruto: string
+  fechaHora: string
+  cuotas?: string
+  estado?: string
+  externalReference?: string
+}

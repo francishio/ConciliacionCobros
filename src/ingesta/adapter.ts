@@ -13,8 +13,21 @@ export interface VentanaIngesta {
   hasta: Date
 }
 
+// Adaptador por PULL (API): obtiene los datos por ventana temporal (cron).
 export interface IngestaAdapter {
   readonly proveedor: Proveedor
   obtenerTransacciones(ventana: VentanaIngesta): Promise<TransaccionNormalizada[]>
   obtenerLiquidaciones(ventana: VentanaIngesta): Promise<LiquidacionNormalizada[]>
+}
+
+// Contenido de un archivo de reporte a ingerir (upload o descarga programada).
+export interface EntradaArchivo {
+  contenido: string | Buffer
+}
+
+// Adaptador por ARCHIVO: parsea un reporte (CSV) a registros normalizados.
+// El disparador es la llegada del archivo, no una ventana temporal.
+export interface ArchivoAdapter {
+  readonly proveedor: Proveedor
+  parseTransacciones(entrada: EntradaArchivo): TransaccionNormalizada[]
 }
