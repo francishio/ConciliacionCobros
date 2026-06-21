@@ -101,9 +101,10 @@ no cambies la arquitectura sin alinearla primero.
 - [~] Adaptadores de ingesta: MP transacciones ✅ (API), Payway transacciones ✅ (CSV),
   HIOPOS cobros ✅ (Bridge). Falta: MP/Payway liquidaciones (financiera), Clover/Fiserv
   (esperando credenciales del cliente).
-- [~] Motor de matching: **determinístico ✅** (cód. autorización Clover/Payway + ticket MP)
-  con máquina de estados operativa (`src/matching/`). **Falta: fuzzy** (importe+ventana+marca+ult4)
-  ← PRÓXIMO, y disparar recompute/write-back al cambiar una unión.
+- [x] Motor de matching **operativo** ✅: determinístico (cód. autorización Clover/Payway +
+  ticket MP) + **fuzzy** (importe+ventana+marca+ult4, narrowing progresivo) + máquina de
+  estados + cola de excepciones (`src/matching/`). Ventana en minutos = mismo día cuando los
+  datos vienen sin hora. Falta: re-evaluar SIN_TRANSACCION/EN_REVISION (transacción tardía).
 - [ ] Write-back de estados a HIOPOS
 - [ ] Web app de conciliación
 

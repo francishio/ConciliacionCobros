@@ -159,6 +159,7 @@ model Transaccion {
   externalReference String? // ticket HIOPOS estampado (MP) — clave determinística MP
   codAutorizacion   String? // cód. autorización de tarjeta — clave determinística Clover/Payway
   marca             String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
+  ultimos4          String? // últimos 4 de la tarjeta — para matching fuzzy
   estado            EstadoTransaccion @default(APROBADA)
   fechaHora         DateTime
   raw               Json // payload crudo del proveedor (auditoría)
