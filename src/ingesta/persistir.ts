@@ -63,6 +63,8 @@ export async function ingestarTransacciones(
           cuotas: r.cuotas,
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
+          marca: r.marca ?? null,
+          ultimos4: r.ultimos4 ?? null,
           estado: r.estado,
           fechaHora: r.fechaHora,
           raw: r.raw as Prisma.InputJsonValue,
@@ -72,6 +74,8 @@ export async function ingestarTransacciones(
           cuotas: r.cuotas,
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
+          marca: r.marca ?? null,
+          ultimos4: r.ultimos4 ?? null,
           estado: r.estado,
           fechaHora: r.fechaHora,
           raw: r.raw as Prisma.InputJsonValue,
@@ -81,4 +85,42 @@ export async function ingestarTransacciones(
     }
     return { recibidas: registros.length, persistidas }
   })
+}
+
+// Carga masiva de transacciones en lotes (para reportes grandes, ej. Payway con
+// miles de filas). Usa createMany + skipDuplicates (1 query por lote, idempotente
+// por (tenantId, proveedor, idExterno)). Cada lote va en su propia transacción
+// para no exceder el timeout. Apto para fuentes inmutables (transacciones ya
+// presentadas); para datos que mutan (ej. estado MP) usar ingestarTransacciones.
+export async function ingestarTransaccionesBulk(
+  tenantId: string,
+  registros: TransaccionNormalizada[],
+  opciones?: { tamanoLote?: number },
+): Promise<ResultadoIngesta> {
+  const tamano = opciones?.tamanoLote ?? 1000
+  let persistidas = 0
+  for (let i = 0; i < registros.length; i += tamano) {
+    const lote = registros.slice(i, i + tamano)
+    const res = await withTenant(tenantId, (tx) =>
+      tx.transaccion.createMany({
+        data: lote.map((r) => ({
+          tenantId,
+          proveedor: r.proveedor,
+          idExterno: r.idExterno,
+          importeBruto: r.importeBruto,
+          cuotas: r.cuotas,
+          externalReference: r.externalReference,
+          codAutorizacion: r.codAutorizacion,
+          marca: r.marca ?? null,
+          ultimos4: r.ultimos4 ?? null,
+          estado: r.estado,
+          fechaHora: r.fechaHora,
+          raw: r.raw as Prisma.InputJsonValue,
+        })),
+        skipDuplicates: true,
+      }),
+    )
+    persistidas += res.count
+  }
+  return { recibidas: registros.length, persistidas }
 }

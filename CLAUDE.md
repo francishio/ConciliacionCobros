@@ -104,9 +104,9 @@ no cambies la arquitectura sin alinearla primero.
 - [x] `prisma/schema.prisma` (modelo canónico v1)
 - [x] Scaffolding (worker Node+TS, Prisma 5.22, Neon, `withTenant`/`adminDb`)
 - [x] Migración inicial + políticas RLS (rol `app_runtime`, aislamiento por tenant verificado)
-- [~] Adaptadores de ingesta: MP transacciones ✅ (API), Payway transacciones ✅ (CSV),
-  HIOPOS cobros ✅ (Bridge). Falta: MP/Payway liquidaciones (financiera), Clover/Fiserv
-  (esperando credenciales del cliente).
+- [~] Adaptadores de ingesta: MP transacciones ✅ (API), Payway transacciones ✅ (xlsx real
+  + carga en lotes `ingestarTransaccionesBulk`), HIOPOS cobros ✅ (Bridge). Falta: MP/Payway
+  liquidaciones (financiera), Clover/Fiserv (esperando credenciales del cliente).
 - [x] Motor de matching **operativo** ✅: determinístico (cód. autorización Clover/Payway +
   ticket MP) + **fuzzy** (importe+ventana+marca+ult4, narrowing progresivo) + máquina de
   estados + cola de excepciones (`src/matching/`). **Por proveedor** (`MapeoMedioPago`,

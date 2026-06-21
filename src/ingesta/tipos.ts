@@ -10,6 +10,8 @@ export interface TransaccionNormalizada {
   cuotas: number
   externalReference: string | null // ticket HIOPOS estampado (MP) — clave determinística MP
   codAutorizacion: string | null // cód. autorización tarjeta — clave determinística Clover/Payway
+  marca?: string | null // marca de tarjeta (para fuzzy)
+  ultimos4?: string | null // últimos 4 de la tarjeta (para fuzzy)
   estado: EstadoTransaccion
   fechaHora: Date
   raw: unknown // payload crudo del proveedor (auditoría)
