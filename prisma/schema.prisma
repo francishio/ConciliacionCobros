@@ -156,7 +156,8 @@ model Transaccion {
   idExterno         String // MP payment_id / Payway TID
   importeBruto      Decimal           @db.Decimal(12, 2)
   cuotas            Int               @default(1)
-  externalReference String? // ticket HIOPOS estampado (MP)
+  externalReference String? // ticket HIOPOS estampado (MP) — clave determinística MP
+  codAutorizacion   String? // cód. autorización de tarjeta — clave determinística Clover/Payway
   marca             String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   estado            EstadoTransaccion @default(APROBADA)
   fechaHora         DateTime
@@ -170,6 +171,7 @@ model Transaccion {
 
   @@unique([tenantId, proveedor, idExterno]) // idempotencia de ingesta
   @@index([tenantId, fechaHora])
+  @@index([tenantId, codAutorizacion]) // match determinístico
   @@map("transaccion")
 }
 

@@ -83,6 +83,7 @@ export class PaywayAdapter implements ArchivoAdapter {
       importeBruto: parseImporte(fila[this.mapeo.importeBruto]),
       cuotas: this.mapeo.cuotas && fila[this.mapeo.cuotas] ? Number(fila[this.mapeo.cuotas]) : 1,
       externalReference: this.mapeo.externalReference ? fila[this.mapeo.externalReference] ?? null : null,
+      codAutorizacion: this.mapeo.codAutorizacion ? fila[this.mapeo.codAutorizacion] ?? null : null,
       estado: this.mapEstado(this.mapeo.estado ? fila[this.mapeo.estado] : undefined),
       fechaHora: parseFecha(fila[this.mapeo.fechaHora]),
       raw: fila,

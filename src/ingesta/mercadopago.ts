@@ -13,6 +13,7 @@ export interface MpPayment {
   transaction_amount: number
   installments?: number
   external_reference?: string | null
+  authorization_code?: string | null
   date_approved?: string | null
   date_created?: string | null
   [k: string]: unknown
@@ -47,6 +48,7 @@ export function normalizarPagoMp(p: MpPayment): TransaccionNormalizada {
     importeBruto: p.transaction_amount.toFixed(2),
     cuotas: p.installments ?? 1,
     externalReference: p.external_reference ?? null,
+    codAutorizacion: p.authorization_code ?? null,
     estado: mapEstado(p.status),
     fechaHora: new Date(fecha),
     raw: p,

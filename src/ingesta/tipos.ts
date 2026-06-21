@@ -8,7 +8,8 @@ export interface TransaccionNormalizada {
   idExterno: string // MP payment_id / Payway TID
   importeBruto: string // decimal como string para no perder precisión
   cuotas: number
-  externalReference: string | null // ticket HIOPOS estampado (MP)
+  externalReference: string | null // ticket HIOPOS estampado (MP) — clave determinística MP
+  codAutorizacion: string | null // cód. autorización tarjeta — clave determinística Clover/Payway
   estado: EstadoTransaccion
   fechaHora: Date
   raw: unknown // payload crudo del proveedor (auditoría)
@@ -54,4 +55,5 @@ export interface MapeoColumnasTransaccion {
   cuotas?: string
   estado?: string
   externalReference?: string
+  codAutorizacion?: string
 }
