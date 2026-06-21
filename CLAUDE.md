@@ -122,11 +122,17 @@ no cambies la arquitectura sin alinearla primero.
 
 ### Pendientes / notas para retomar
 
-- **Clover/Fiserv**: el cliente (Francisco) está averiguando el acceso/credenciales
-  (API de Clover vs portal). GARDINER procesa con Clover → su operativa es cobros
-  HIOPOS ↔ transacciones Clover.
-- **Header HIOPOS**: confirmar el header del export una vez que pase el rate-limit
-  (Francisco sacó la columna `Cód. Doc.` duplicada; el mapeo por nombre lo tolera igual).
+- **Rochino (caso fuzzy puro)**: motor de matching + ingesta real de Payway (Excel)
+  listos y probados. Falta correr el **cruce real** → bloqueado por la inestabilidad
+  del Bridge de HIOPOS. Francisco va a pedirle a Rochino su **Access Token de
+  MercadoPago** para probar también el cruce MP (Rochino tiene cobros "Mercadopago
+  MANUAL"). Con el token: armar adaptador MP (movimientos + liquidaciones) y cruzar.
+- **Bridge HIOPOS inestable** (timeouts de conexión / respuestas vacías): mitigado con
+  reintentos + re-login; es infra de ICG, Francisco lo va a revisar de su lado.
+- **Próximos pasos de código** (no dependen de la infra): (1) **batching del matcher**
+  (`conciliarOperativa`) para el mes completo; (2) **conciliación financiera** tramo 1
+  (liquidaciones); (3) write-back a HIOPOS; (4) web app.
+- **Clover/Fiserv**: esperando credenciales (GARDINER procesa con Clover).
 - **Seguridad**: rotar el password de `neondb_owner` en Neon (quedó expuesto en chat).
 
 ## Convenciones de código
