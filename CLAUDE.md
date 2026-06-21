@@ -66,6 +66,11 @@ no cambies la arquitectura sin alinearla primero.
   separado: `conciliarOperativa(tenant, proveedor)` solo procesa los cobros de ese medio
   y nunca matchea contra transacciones de otro proveedor. (A futuro HIOPOS podría traer
   un campo estandarizado de "grupo de conciliación" por medio.)
+- **Acceso a datos por proveedor** (ver arquitectura §3): **Mercado Pago = API**
+  (movimientos + liquidaciones; credencial = Access Token, multi-tenant vía OAuth).
+  **Payway = SIN API de reportería** (su developer API es gateway de cobro); se baja de
+  Mi Payway (Movimientos en Excel + Liquidaciones, parte en PDF) → ingesta por
+  **archivo/upload**. HIOPOS = Bridge (export). Banco (Fase 2) = upload manual.
 - **Conciliación financiera en 2 tramos**: tramo 1 = transacción ↔ settlement del
   procesador (Fase 1, en curso); tramo 2 = settlement ↔ extracto bancario (**Fase 2,
   diferida**: upload manual del extracto, match fuzzy a nivel pila, retenciones

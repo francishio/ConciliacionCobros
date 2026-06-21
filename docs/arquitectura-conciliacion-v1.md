@@ -70,6 +70,23 @@ distintos por proveedor**:
 
 Sumar un procesador = un adaptador nuevo sobre la misma interfaz; el motor no cambia.
 
+**Acceso a datos por proveedor (confirmado, 2026-06-21):**
+
+- **Mercado Pago — API.** Expone movimientos (`/v1/payments/search`, reporte "Todas
+  las transacciones") y **liquidaciones** (reporte de released money,
+  `POST /v1/account/release_report/config` + descarga; incluso entrega por SFTP
+  configurable). Credencial: **Access Token** (header `Bearer`). Multi-tenant
+  correcto vía **OAuth** (`authorization_code` + `refresh_token`; el cliente autoriza
+  la app sin entregar su credencial maestra; token válido 180 días). Para *probar*
+  alcanza el Access Token de producción del cliente.
+- **Payway — archivo, SIN API de reportería.** El portal de desarrolladores de Payway
+  es un *gateway de cobro* (procesar pagos), no expone reportes. La conciliación se
+  **baja de portales**: Mi Payway → "Movimientos Presentado" (Excel, operativa) y
+  "Liquidaciones" / Payway Conciliaciones `liquidacion.centralpos.com` (financiera,
+  parte en **PDF por tarjeta**). Credencial: login de Mi Payway + nº de
+  establecimiento. Automatizar requeriría pedirle a Payway **entrega programada/SFTP**
+  (no self-serve). → ingesta por **archivo** (upload).
+
 ---
 
 ## 4. Arquitectura en capas
