@@ -60,6 +60,12 @@ no cambies la arquitectura sin alinearla primero.
 - **Procesadores soportados**: Mercado Pago (API), Payway (archivo) y **Fiserv/Clover**
   (API o archivo, configurable por tenant). Sumar uno = nuevo adaptador sobre
   `IngestaAdapter`; el motor no cambia.
+- **Conciliación por proveedor / multi-pasarela**: la expo de HIOPOS trae todos los
+  medios de pago juntos; `MapeoMedioPago` (por tenant) mapea cada medio → proveedor, o
+  `null` = NO CONCILIABLE (ej. EFECTIVO → `NO_APLICA`). Cada pasarela es un cruce
+  separado: `conciliarOperativa(tenant, proveedor)` solo procesa los cobros de ese medio
+  y nunca matchea contra transacciones de otro proveedor. (A futuro HIOPOS podría traer
+  un campo estandarizado de "grupo de conciliación" por medio.)
 - **Conciliación financiera en 2 tramos**: tramo 1 = transacción ↔ settlement del
   procesador (Fase 1, en curso); tramo 2 = settlement ↔ extracto bancario (**Fase 2,
   diferida**: upload manual del extracto, match fuzzy a nivel pila, retenciones
@@ -103,8 +109,9 @@ no cambies la arquitectura sin alinearla primero.
   (esperando credenciales del cliente).
 - [x] Motor de matching **operativo** ✅: determinístico (cód. autorización Clover/Payway +
   ticket MP) + **fuzzy** (importe+ventana+marca+ult4, narrowing progresivo) + máquina de
-  estados + cola de excepciones (`src/matching/`). Ventana en minutos = mismo día cuando los
-  datos vienen sin hora. Falta: re-evaluar SIN_TRANSACCION/EN_REVISION (transacción tardía).
+  estados + cola de excepciones (`src/matching/`). **Por proveedor** (`MapeoMedioPago`,
+  multi-pasarela). Ventana en minutos = mismo día cuando los datos vienen sin hora. Falta:
+  re-evaluar SIN_TRANSACCION/EN_REVISION (transacción tardía).
 - [ ] Write-back de estados a HIOPOS
 - [ ] Web app de conciliación
 

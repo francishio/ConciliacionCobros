@@ -104,9 +104,26 @@ model Tenant {
   matches           Match[]
   liquidacionLineas LiquidacionLinea[]
   retenciones       Retencion[]
+  mapeosMedioPago   MapeoMedioPago[]
   matchingProfile   MatchingProfile?
 
   @@map("tenant")
+}
+
+// Mapea cada medio de pago de HIOPOS a la conciliación (proveedor) a la que
+// pertenece. proveedor = null → NO CONCILIABLE (ej. EFECTIVO) → estadoOp NO_APLICA.
+// La expo de HIOPOS trae todos los medios juntos; esto separa cada cruce.
+model MapeoMedioPago {
+  id        String     @id @default(uuid())
+  tenantId  String
+  medioPago String // string exacto del export HIOPOS (ej. "Payway", "Mercadopago MANUAL", "EFECTIVO")
+  proveedor Proveedor? // a qué conciliación pertenece; null = NO CONCILIABLE
+  creadoEn  DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, medioPago])
+  @@map("mapeo_medio_pago")
 }
 
 model MatchingProfile {

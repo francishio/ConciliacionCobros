@@ -123,18 +123,22 @@ export class HioposBridgeClient {
     const demora = opciones.demoraMs ?? 2000
     let docs: ExportedDoc[] = []
     for (let intento = 0; intento <= max; intento++) {
-      // Login fresco en cada intento: el export vuelve vacío de forma
-      // intermitente según el nodo/sesión, y reintentar con la misma sesión no
-      // recupera. Re-loguear suele caer en un nodo que sí responde.
-      const session = await this.login()
+      // Login fresco en cada intento: el export falla de forma intermitente
+      // según el nodo/sesión (vuelve vacío, o timeout de conexión al
+      // cloudclient). Re-loguear suele caer en un nodo que sí responde.
       try {
-        docs = await this.launchExportation(session, params)
-      } finally {
+        const session = await this.login()
         try {
-          await this.logout(session)
-        } catch {
-          /* best-effort */
+          docs = await this.launchExportation(session, params)
+        } finally {
+          try {
+            await this.logout(session)
+          } catch {
+            /* best-effort */
+          }
         }
+      } catch {
+        docs = [] // error de red/servidor en este nodo → reintentar
       }
       if (docs.length > 0) break
       if (intento < max) await new Promise((r) => setTimeout(r, demora))

@@ -1,58 +1,86 @@
-// Orquestador de la conciliación operativa (cobro ↔ transacción) por tenant.
-// Cascada: determinístico → fuzzy → conclusión. Crea la unión en `Match`,
-// proyecta `estadoOp` en cada `Cobro` y abre `Excepcion` para los breaks.
+// Orquestador de la conciliación operativa (cobro ↔ transacción) POR PROVEEDOR.
+// La expo de HIOPOS trae todos los medios de pago juntos; el MapeoMedioPago del
+// tenant define qué medio pertenece a qué conciliación (proveedor) o si es NO
+// CONCILIABLE (→ NO_APLICA, ej. EFECTIVO). Cada proveedor es un cruce separado:
+// un cobro de un medio nunca matchea contra transacciones de otro proveedor.
 //
-// Procesa los cobros en estado PENDIENTE. (TODO: re-evaluar SIN_TRANSACCION /
-// EN_REVISION en corridas posteriores — transacción tardía / ventana móvil; y
-// paginar para batches grandes: hoy va todo en una $transaction vía withTenant.)
-import type { TipoExcepcion, Transaccion } from '@prisma/client'
+// Cascada por cobro: determinístico → fuzzy → conclusión. Crea la unión en
+// `Match`, proyecta `estadoOp` y abre `Excepcion` para los breaks.
+//
+// TODO: re-evaluar SIN_TRANSACCION / EN_REVISION en corridas posteriores
+// (transacción tardía / ventana móvil); paginar para batches grandes.
+import type { Proveedor, TipoExcepcion, Transaccion } from '@prisma/client'
 import { withTenant } from '../db/tenant'
 import { indexarTransacciones, matchDeterministico } from './deterministico'
 import { matchFuzzy } from './fuzzy'
 import { estadoOperativaPorMonto } from './estado'
 
 export interface ResultadoConciliacionOperativa {
-  cobrosPendientes: number
+  proveedor: Proveedor
+  cobrosPendientes: number // total PENDIENTE al inicio
+  procesados: number // los del proveedor pedido
   deterministico: number
   fuzzy: number
   ok: number
   diferenciaMonto: number
   enRevision: number
   sinTransaccion: number
+  noAplica: number // medios NO CONCILIABLE → NO_APLICA
+  sinMapeo: number // medios sin configurar en MapeoMedioPago (se omiten)
   excepciones: number
 }
 
-export async function conciliarOperativa(tenantId: string): Promise<ResultadoConciliacionOperativa> {
+export async function conciliarOperativa(
+  tenantId: string,
+  proveedor: Proveedor,
+): Promise<ResultadoConciliacionOperativa> {
   return withTenant(tenantId, async (tx) => {
     const profile = await tx.matchingProfile.findUnique({ where: { tenantId } })
     const tolMonto = profile ? Number(profile.tolMonto) : 0
     const ventanaMin = profile?.ventanaMin ?? 5
 
-    const cobros = await tx.cobro.findMany({ where: { estadoOp: 'PENDIENTE' } })
-    const transacciones = await tx.transaccion.findMany({ where: { estado: 'APROBADA' } })
-    const idx = indexarTransacciones(transacciones)
+    // Mapeo medio de pago → proveedor (o null = NO CONCILIABLE).
+    const mapeos = await tx.mapeoMedioPago.findMany()
+    const provDeMedio = new Map<string, Proveedor | null>()
+    for (const m of mapeos) provDeMedio.set(m.medioPago, m.proveedor)
 
-    // Transacciones ya unidas: no reusarlas (match 1:1).
+    const pendientes = await tx.cobro.findMany({ where: { estadoOp: 'PENDIENTE' } })
+
+    const r: ResultadoConciliacionOperativa = {
+      proveedor, cobrosPendientes: pendientes.length, procesados: 0,
+      deterministico: 0, fuzzy: 0, ok: 0, diferenciaMonto: 0,
+      enRevision: 0, sinTransaccion: 0, noAplica: 0, sinMapeo: 0, excepciones: 0,
+    }
+
+    // Clasificar los pendientes según el mapeo del medio de pago.
+    const delProveedor: typeof pendientes = []
+    for (const c of pendientes) {
+      if (!provDeMedio.has(c.medioPago)) { r.sinMapeo++; continue } // sin configurar → omitir
+      const prov = provDeMedio.get(c.medioPago) ?? null
+      if (prov === null) {
+        await tx.cobro.update({ where: { id: c.id }, data: { estadoOp: 'NO_APLICA' } })
+        r.noAplica++
+      } else if (prov === proveedor) {
+        delProveedor.push(c)
+      }
+      // prov de otro proveedor → se omite (lo procesa la corrida de ese proveedor)
+    }
+    r.procesados = delProveedor.length
+
+    // Transacciones SOLO de este proveedor.
+    const transacciones = await tx.transaccion.findMany({ where: { estado: 'APROBADA', proveedor } })
+    const idx = indexarTransacciones(transacciones)
     const yaMatcheadas = await tx.match.findMany({ select: { transaccionId: true } })
     const usadas = new Set(yaMatcheadas.map((m) => m.transaccionId))
 
-    const r: ResultadoConciliacionOperativa = {
-      cobrosPendientes: cobros.length,
-      deterministico: 0, fuzzy: 0, ok: 0, diferenciaMonto: 0,
-      enRevision: 0, sinTransaccion: 0, excepciones: 0,
-    }
-
     const abrirExcepcion = async (cobroId: string, tipo: TipoExcepcion, nota: string): Promise<void> => {
-      await tx.excepcion.create({ data: { tenantId, cobroId, tipo, nota } })
+      await tx.excepcion.create({ data: { tenantId, cobroId, transaccionId: null, tipo, nota } })
       r.excepciones++
     }
 
     const aplicarMatch = async (
-      cobroId: string,
-      importeCobro: string,
-      transaccion: Transaccion,
-      tipo: 'DETERMINISTICO' | 'FUZZY',
-      score: number | null,
+      cobroId: string, importeCobro: string, transaccion: Transaccion,
+      tipo: 'DETERMINISTICO' | 'FUZZY', score: number | null,
     ): Promise<void> => {
       usadas.add(transaccion.id)
       await tx.match.create({ data: { tenantId, cobroId, transaccionId: transaccion.id, tipo, score } })
@@ -71,8 +99,7 @@ export async function conciliarOperativa(tenantId: string): Promise<ResultadoCon
       r.enRevision++
     }
 
-    for (const cobro of cobros) {
-      // 1. Determinístico
+    for (const cobro of delProveedor) {
       const det = matchDeterministico(cobro, idx, usadas)
       if (det.tipo === 'match') {
         await aplicarMatch(cobro.id, cobro.importe.toString(), det.transaccion, 'DETERMINISTICO', null)
@@ -84,7 +111,6 @@ export async function conciliarOperativa(tenantId: string): Promise<ResultadoCon
         continue
       }
 
-      // 2. Fuzzy
       const fz = matchFuzzy(cobro, transacciones, usadas, { tolMonto, ventanaMin })
       if (fz.tipo === 'match') {
         await aplicarMatch(cobro.id, cobro.importe.toString(), fz.transaccion, 'FUZZY', fz.score)
@@ -96,7 +122,6 @@ export async function conciliarOperativa(tenantId: string): Promise<ResultadoCon
         continue
       }
 
-      // 3. Sin match
       await tx.cobro.update({ where: { id: cobro.id }, data: { estadoOp: 'SIN_TRANSACCION' } })
       await abrirExcepcion(cobro.id, 'COBRO_SIN_TRANSACCION', 'No se encontró transacción del procesador')
       r.sinTransaccion++
