@@ -90,6 +90,9 @@ no cambies la arquitectura sin alinearla primero.
 
 - **RLS no lo maneja Prisma.** Las políticas de Row-Level Security van en una
   migración SQL aparte, sobre `tenant_id`. Toda query respeta el aislamiento por tenant.
+  **⚠️ Cada tabla nueva con `tenantId` necesita su migración RLS A MANO** (`ENABLE ROW
+  LEVEL SECURITY` + policy `USING ("tenantId" = current_setting('app.current_tenant', true))`).
+  `prisma migrate dev` solo da el GRANT (vía ALTER DEFAULT PRIVILEGES), **no** la política.
 - **Dos clientes Prisma:** `db` (rol `app_runtime`, RLS aplicada) para datos de un
   tenant, siempre vía `withTenant(tenantId, fn)` que setea `app.current_tenant` por
   transacción; `adminDb` (rol `neondb_owner`, bypassa RLS) SOLO para operaciones
