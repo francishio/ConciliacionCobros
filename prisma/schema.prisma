@@ -47,6 +47,11 @@ enum EstadoTransaccion {
   CONTRACARGO
 }
 
+enum TipoTarjeta {
+  CREDITO
+  DEBITO
+}
+
 enum TipoMatch {
   DETERMINISTICO
   FUZZY
@@ -149,6 +154,7 @@ model Cobro {
   codAutorizacion String? // clave determinística (si integrado)
   ultimos4        String? // para matching fuzzy
   marca           String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
+  tipoTarjeta     TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
   origenRef       String // clave natural del origen (idempotencia de ingesta)
   raw             Json? // payload crudo del origen (auditoría)
   estadoOp        EstadoOperativa  @default(PENDIENTE) // proyección → write-back HIOPOS
@@ -177,6 +183,7 @@ model Transaccion {
   codAutorizacion   String? // cód. autorización de tarjeta — clave determinística Clover/Payway
   marca             String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   ultimos4          String? // últimos 4 de la tarjeta — para matching fuzzy
+  tipoTarjeta       TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
   estado            EstadoTransaccion @default(APROBADA)
   fechaHora         DateTime
   raw               Json // payload crudo del proveedor (auditoría)

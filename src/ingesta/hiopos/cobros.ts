@@ -58,6 +58,14 @@ function ultimos4(numeroTarjeta: string): string | null {
   return m ? m[1] : null
 }
 
+// Tipo de tarjeta desde el medio de pago de HIOPOS ("Crédito Otras" / "Débito
+// Otras"). Desempata en el fuzzy cuando hay varios candidatos del mismo importe.
+function tipoTarjetaDe(medioPago: string): 'CREDITO' | 'DEBITO' | null {
+  if (/d[eé]bito|debit/i.test(medioPago)) return 'DEBITO'
+  if (/cr[eé]dito|credit/i.test(medioPago)) return 'CREDITO'
+  return null
+}
+
 function rawObjeto(header: string[], fila: string[]): Record<string, string> {
   const o: Record<string, string> = {}
   header.forEach((h, i) => {
@@ -89,6 +97,7 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
       hioposTicketId: codDoc,
       medioPago: (c[idx.medioPago] ?? '').trim(),
       marca: (c[idx.marca] ?? '').trim() || null,
+      tipoTarjeta: tipoTarjetaDe((c[idx.medioPago] ?? '').trim()),
       importe: parseImporteAr(c[idx.importe]),
       cuotas: 1, // el export no trae cuotas; default 1
       fechaHora: parseFechaAr(c[idx.fecha]),

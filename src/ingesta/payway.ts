@@ -58,6 +58,14 @@ function ultimos4(numeroTarjeta: string): string | null {
   return m ? m[1] : null
 }
 
+// Tipo de tarjeta desde la MARCA de Payway ("VISA DEBITO" → DEBITO; "VISA",
+// "MASTERCARD", "AMEX" → CREDITO). Desempata en el fuzzy.
+function tipoTarjetaDe(marca: string): 'CREDITO' | 'DEBITO' | null {
+  const m = (marca ?? '').trim()
+  if (!m) return null
+  return /d[eé]bito|debit/i.test(m) ? 'DEBITO' : 'CREDITO'
+}
+
 function rawObjeto(header: string[], fila: string[]): Record<string, string> {
   const o: Record<string, string> = {}
   header.forEach((h, i) => {
@@ -103,6 +111,7 @@ export function parseTransaccionesPayway(contenido: string | Buffer): Transaccio
       externalReference: null,
       codAutorizacion: nroAut || null,
       marca: (c[idx.marca] ?? '').trim() || null,
+      tipoTarjeta: tipoTarjetaDe(c[idx.marca] ?? ''),
       ultimos4: ultimos4(c[idx.numTarjeta]),
       estado: estadoDeTipo(c[idx.tipo]),
       fechaHora: parseFecha(c[idx.compra]),

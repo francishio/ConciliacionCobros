@@ -23,7 +23,8 @@ const igual = (a: string | null, b: string | null): boolean =>
 function puntuar(cobro: Cobro, t: Transaccion): number {
   let s = 0.5
   if (igual(cobro.ultimos4, t.ultimos4)) s += 0.3
-  if (igual(cobro.marca, t.marca)) s += 0.2
+  if (igual(cobro.marca, t.marca)) s += 0.15
+  if (cobro.tipoTarjeta && cobro.tipoTarjeta === t.tipoTarjeta) s += 0.1
   return Math.min(s, 1)
 }
 
@@ -53,6 +54,11 @@ export function matchFuzzy(
   // Narrowing por marca (si el cobro la tiene y algún candidato coincide).
   if (cands.length > 1 && cobro.marca) {
     const refinado = cands.filter((t) => igual(cobro.marca, t.marca))
+    if (refinado.length > 0) cands = refinado
+  }
+  // Narrowing por tipo crédito/débito (desempate; no descarta si ninguno coincide).
+  if (cands.length > 1 && cobro.tipoTarjeta) {
+    const refinado = cands.filter((t) => t.tipoTarjeta === cobro.tipoTarjeta)
     if (refinado.length > 0) cands = refinado
   }
 

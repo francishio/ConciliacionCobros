@@ -1,7 +1,7 @@
 // Tipos normalizados de ingesta — independientes del proveedor.
 // Los adaptadores mapean su fuente (API, webhook, archivo) a estas formas;
 // la persistencia las baja al modelo canónico de Prisma.
-import type { EstadoTransaccion, Proveedor, TipoMovimiento } from '@prisma/client'
+import type { EstadoTransaccion, Proveedor, TipoMovimiento, TipoTarjeta } from '@prisma/client'
 
 export interface TransaccionNormalizada {
   proveedor: Proveedor
@@ -12,6 +12,7 @@ export interface TransaccionNormalizada {
   codAutorizacion: string | null // cód. autorización tarjeta — clave determinística Clover/Payway
   marca?: string | null // marca de tarjeta (para fuzzy)
   ultimos4?: string | null // últimos 4 de la tarjeta (para fuzzy)
+  tipoTarjeta?: TipoTarjeta | null // CREDITO/DEBITO (para narrowing fuzzy)
   estado: EstadoTransaccion
   fechaHora: Date
   raw: unknown // payload crudo del proveedor (auditoría)
@@ -40,6 +41,7 @@ export interface CobroNormalizado {
   hioposTicketId: string
   medioPago: string
   marca: string | null // marca de tarjeta (VISA/MASTERCARD/…)
+  tipoTarjeta: TipoTarjeta | null // CREDITO/DEBITO (para narrowing fuzzy)
   importe: string
   cuotas: number
   fechaHora: Date
