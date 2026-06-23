@@ -6,7 +6,8 @@
 // tenant_id) + scoping en la capa de aplicación. Ver docs de arquitectura §5.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"] // omitir columnas pesadas (raw) en queries del matcher
 }
 
 datasource db {

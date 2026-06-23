@@ -1,11 +1,12 @@
 // Match fuzzy (arquitectura §7, fallback sin clave compartida).
 // Gate obligatorio: importe dentro de tolerancia + fecha dentro de ventana.
-// Luego narrowing progresivo por últimos4 y marca (si ambos lados los tienen).
-// Candidato único → match; varios → ambiguo (a revisión, nunca se fuerza).
+// Luego narrowing progresivo por últimos4, marca y tipo (crédito/débito), como
+// desempate suave (solo si deja ≥1 candidato). Candidato único → match; varios →
+// ambiguo (a revisión, nunca se fuerza).
 //
-// Nota sobre la ventana: si los datos vienen sin hora (medianoche), el cruce
-// por minutos equivale a "mismo día" (el día siguiente está a 1440 min).
-import type { Cobro, Transaccion } from '@prisma/client'
+// Nota sobre la ventana: si los datos vienen sin hora (medianoche), el cruce por
+// minutos equivale a "mismo día" siempre que ventanaMin < 1440.
+import type { CobroMatch, TransaccionMatch } from './tipos'
 
 export interface ParametrosFuzzy {
   tolMonto: number
@@ -13,14 +14,14 @@ export interface ParametrosFuzzy {
 }
 
 export type ResultadoFuzzy =
-  | { tipo: 'match'; transaccion: Transaccion; score: number }
+  | { tipo: 'match'; transaccion: TransaccionMatch; score: number }
   | { tipo: 'ambiguo'; candidatos: number }
   | { tipo: 'sin_match' }
 
 const igual = (a: string | null, b: string | null): boolean =>
   a != null && b != null && a.trim().toUpperCase() === b.trim().toUpperCase()
 
-function puntuar(cobro: Cobro, t: Transaccion): number {
+function puntuar(cobro: CobroMatch, t: TransaccionMatch): number {
   let s = 0.5
   if (igual(cobro.ultimos4, t.ultimos4)) s += 0.3
   if (igual(cobro.marca, t.marca)) s += 0.15
@@ -29,8 +30,8 @@ function puntuar(cobro: Cobro, t: Transaccion): number {
 }
 
 export function matchFuzzy(
-  cobro: Cobro,
-  transacciones: Transaccion[],
+  cobro: CobroMatch,
+  transacciones: TransaccionMatch[],
   usadas: Set<string>,
   p: ParametrosFuzzy,
 ): ResultadoFuzzy {

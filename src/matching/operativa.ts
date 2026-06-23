@@ -6,11 +6,12 @@
 // Escala: hace LECTURA → CÓMPUTO en memoria → ESCRITURA en lotes
 // (createMany / updateMany), así un mes completo (miles de cobros) no excede el
 // timeout de transacción. La asignación es 1:1 (una transacción no se reusa).
-import type { EstadoOperativa, Proveedor, TipoExcepcion, Transaccion } from '@prisma/client'
+import type { EstadoOperativa, Proveedor, TipoExcepcion } from '@prisma/client'
 import { withTenant } from '../db/tenant'
 import { indexarTransacciones, matchDeterministico } from './deterministico'
 import { matchFuzzy } from './fuzzy'
 import { estadoOperativaPorMonto } from './estado'
+import type { TransaccionMatch } from './tipos'
 
 export interface ResultadoConciliacionOperativa {
   proveedor: Proveedor
@@ -49,8 +50,8 @@ export async function conciliarOperativa(
   const datos = await withTenant(tenantId, async (tx) => ({
     profile: await tx.matchingProfile.findUnique({ where: { tenantId } }),
     mapeos: await tx.mapeoMedioPago.findMany(),
-    cobros: await tx.cobro.findMany({ where: { estadoOp: 'PENDIENTE' } }),
-    transacciones: await tx.transaccion.findMany({ where: { estado: 'APROBADA', proveedor } }),
+    cobros: await tx.cobro.findMany({ where: { estadoOp: 'PENDIENTE' }, omit: { raw: true } }),
+    transacciones: await tx.transaccion.findMany({ where: { estado: 'APROBADA', proveedor }, omit: { raw: true } }),
     usadas: (await tx.match.findMany({ select: { transaccionId: true } })).map((m) => m.transaccionId),
   }))
 
@@ -77,7 +78,7 @@ export async function conciliarOperativa(
   }
 
   const concluirMatch = (
-    cobroId: string, importeCobro: string, transaccion: Transaccion,
+    cobroId: string, importeCobro: string, transaccion: TransaccionMatch,
     tipo: 'DETERMINISTICO' | 'FUZZY', score: number | null,
   ): void => {
     usadas.add(transaccion.id)

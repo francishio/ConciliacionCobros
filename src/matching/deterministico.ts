@@ -2,22 +2,22 @@
 //   1. Por código de autorización de tarjeta (Clover / Payway).
 //   2. Por ticket HIOPOS estampado (MP: external_reference == hioposTicketId).
 // Si una clave da más de un candidato libre → ambiguo (no se fuerza el match).
-import type { Cobro, Transaccion } from '@prisma/client'
+import type { CobroMatch, TransaccionMatch } from './tipos'
 
 export interface IndiceDeterministico {
-  porCodAutorizacion: Map<string, Transaccion[]>
-  porTicket: Map<string, Transaccion[]> // externalReference (MP)
+  porCodAutorizacion: Map<string, TransaccionMatch[]>
+  porTicket: Map<string, TransaccionMatch[]> // externalReference (MP)
 }
 
-function agregar(m: Map<string, Transaccion[]>, clave: string, t: Transaccion): void {
+function agregar(m: Map<string, TransaccionMatch[]>, clave: string, t: TransaccionMatch): void {
   const arr = m.get(clave)
   if (arr) arr.push(t)
   else m.set(clave, [t])
 }
 
-export function indexarTransacciones(transacciones: Transaccion[]): IndiceDeterministico {
-  const porCodAutorizacion = new Map<string, Transaccion[]>()
-  const porTicket = new Map<string, Transaccion[]>()
+export function indexarTransacciones(transacciones: TransaccionMatch[]): IndiceDeterministico {
+  const porCodAutorizacion = new Map<string, TransaccionMatch[]>()
+  const porTicket = new Map<string, TransaccionMatch[]>()
   for (const t of transacciones) {
     if (t.codAutorizacion) agregar(porCodAutorizacion, t.codAutorizacion, t)
     if (t.externalReference) agregar(porTicket, t.externalReference, t)
@@ -26,12 +26,12 @@ export function indexarTransacciones(transacciones: Transaccion[]): IndiceDeterm
 }
 
 export type ResultadoDeterministico =
-  | { tipo: 'match'; transaccion: Transaccion }
+  | { tipo: 'match'; transaccion: TransaccionMatch }
   | { tipo: 'ambiguo' }
   | { tipo: 'sin_match' }
 
 export function matchDeterministico(
-  cobro: Cobro,
+  cobro: CobroMatch,
   idx: IndiceDeterministico,
   usadas: Set<string>,
 ): ResultadoDeterministico {
