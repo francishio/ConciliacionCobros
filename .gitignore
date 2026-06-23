@@ -4,6 +4,12 @@ node_modules/
 # Build
 dist/
 
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
 # Variables de entorno (NUNCA commitear secretos)
 .env
 .env.*
