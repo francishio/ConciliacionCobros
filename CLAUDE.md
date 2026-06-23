@@ -122,7 +122,12 @@ no cambies la arquitectura sin alinearla primero.
   (importe+día+tipo, sin auth/tarjeta), 13% revisión, 9% sin transacción. Falta: re-evaluar
   SIN_TRANSACCION/EN_REVISION (transacción tardía).
 - [ ] Write-back de estados a HIOPOS
-- [ ] Web app de conciliación
+- [~] Web app (Next.js 14, app router): **flujo end-to-end MVP** ✅ — subir export HIOPOS
+  + reporte Payway → conciliar → dashboard de métricas (`app/`). Falta: login (NextAuth),
+  cola de excepciones, detalle por cobro, vault de credenciales.
+
+**Scripts**: `npm run dev` = web app (Next) · `npm run worker` = worker (tsx) ·
+`npm run build` = build web · `npm run typecheck`. El repo es Next.js + la lógica en `src/`.
 
 ### Pendientes / notas para retomar
 
