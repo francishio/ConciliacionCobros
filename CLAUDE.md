@@ -134,18 +134,29 @@ no cambies la arquitectura sin alinearla primero.
 
 ### Pendientes / notas para retomar
 
-- **Rochino (caso fuzzy puro)**: motor de matching + ingesta real de Payway (Excel)
-  listos y probados. Falta correr el **cruce real** → bloqueado por la inestabilidad
-  del Bridge de HIOPOS. Francisco va a pedirle a Rochino su **Access Token de
-  MercadoPago** para probar también el cruce MP (Rochino tiene cobros "Mercadopago
-  MANUAL"). Con el token: armar adaptador MP (movimientos + liquidaciones) y cruzar.
-- **Bridge HIOPOS inestable** (timeouts de conexión / respuestas vacías): mitigado con
-  reintentos + re-login; es infra de ICG, Francisco lo va a revisar de su lado.
-- **Próximos pasos de código** (no dependen de la infra): (1) **batching del matcher**
-  (`conciliarOperativa`) para el mes completo; (2) **conciliación financiera** tramo 1
-  (liquidaciones); (3) write-back a HIOPOS; (4) web app.
-- **Clover/Fiserv**: esperando credenciales (GARDINER procesa con Clover).
-- **Seguridad**: rotar el password de `neondb_owner` en Neon (quedó expuesto en chat).
+**Estado (2026-06-23):** web app MVP (subir HIOPOS+Payway → conciliar → dashboard)
+funcionando, validado con Rochino real (**78% auto-conciliable**). Motor batched +
+optimizado (matcher ~16s; omite `raw` vía `omitApi`). RLS completo en todas las tablas.
+
+**Plan acordado** (ver `docs/findings-payconcil.md`): adoptar ideas de PayConcil v2.0
+(UX + DAF) sobre nuestra base. Confirmado: `Tenant` = empresa, `Establecimiento` debajo.
+
+- **PRÓXIMO PASO — multi-establecimiento.** `Establecimiento` (= tienda) anclado al
+  `Cód. Tienda` de HIOPOS; los cobros se linkean solos al ingerir. Transacciones Payway se
+  linkean por un **mapeo** (nro establecimiento Payway → tienda), como `MapeoMedioPago`
+  (porque la numeración Payway ≠ HIOPOS). Agregar `establecimientoId` en Cobro/Transaccion
+  **con su migración RLS A MANO**. Luego el matching scopea por establecimiento.
+- **Después:** conciliación manual (grilla doble, 1:N/N:1, sugerencia=fuzzy bajo umbral,
+  undo, audit) · E2 financiera (extracto bancario) · reportes 8 hojas · alertas ·
+  **UX estilo PayConcil** (dark/fintech: reskin del MVP + 8 pantallas) · login (NextAuth).
+- **Estados a adoptar:** `MANUAL_OK`, `DISPUTED` (E1); `NOT_FOUND`, `EXTRA_CREDIT`,
+  `FIN_MANUAL_OK` (E2). Unir con los nuestros (que ya tienen PARCIAL/CONTRACARGO).
+- **Perf pendiente:** la ingesta sincrónica de ~6000 filas tarda ~74s en la web → moverla a
+  **background (worker)**, no en el request HTTP.
+- **Bridge HIOPOS inestable** (timeouts/vacíos): infra de ICG; mitigado con reintentos+re-login;
+  workaround = subir el archivo descargado a mano.
+- **Credenciales pendientes:** Access Token MP de Rochino (cruce MP) · Clover/Fiserv (GARDINER).
+- **Seguridad:** rotar el password de `neondb_owner` en Neon (quedó expuesto en chat).
 
 ## Convenciones de código
 
