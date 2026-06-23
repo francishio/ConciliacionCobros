@@ -124,3 +124,36 @@ export async function ingestarTransaccionesBulk(
   }
   return { recibidas: registros.length, persistidas }
 }
+
+// Carga masiva de cobros (HIOPOS) en lotes — mismo enfoque que transacciones.
+export async function ingestarCobrosBulk(
+  tenantId: string,
+  cobros: CobroNormalizado[],
+  opciones?: { tamanoLote?: number },
+): Promise<ResultadoIngesta> {
+  const tamano = opciones?.tamanoLote ?? 1000
+  let persistidas = 0
+  for (let i = 0; i < cobros.length; i += tamano) {
+    const lote = cobros.slice(i, i + tamano)
+    const res = await withTenant(tenantId, (tx) =>
+      tx.cobro.createMany({
+        data: lote.map((c) => ({
+          tenantId,
+          origenRef: c.origenRef,
+          hioposTicketId: c.hioposTicketId,
+          medioPago: c.medioPago,
+          marca: c.marca,
+          importe: c.importe,
+          cuotas: c.cuotas,
+          fechaHora: c.fechaHora,
+          codAutorizacion: c.codAutorizacion,
+          ultimos4: c.ultimos4,
+          raw: c.raw as Prisma.InputJsonValue,
+        })),
+        skipDuplicates: true,
+      }),
+    )
+    persistidas += res.count
+  }
+  return { recibidas: cobros.length, persistidas }
+}

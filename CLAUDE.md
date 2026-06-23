@@ -115,8 +115,10 @@ no cambies la arquitectura sin alinearla primero.
 - [x] Motor de matching **operativo** ✅: determinístico (cód. autorización Clover/Payway +
   ticket MP) + **fuzzy** (importe+ventana+marca+ult4, narrowing progresivo) + máquina de
   estados + cola de excepciones (`src/matching/`). **Por proveedor** (`MapeoMedioPago`,
-  multi-pasarela). Ventana en minutos = mismo día cuando los datos vienen sin hora. Falta:
-  re-evaluar SIN_TRANSACCION/EN_REVISION (transacción tardía).
+  multi-pasarela). **Batched** (lee→computa→escribe en lotes; escala validada: 1818 cobros
+  en ~21s). Ventana en minutos debe ser **< 1440** para datos sin hora (= mismo día).
+  **Validado con Rochino real: ~69% auto-conciliable** en el peor caso (solo importe+día).
+  Falta: narrowing crédito/débito (sube a ~74%), re-evaluar SIN_TRANSACCION/EN_REVISION.
 - [ ] Write-back de estados a HIOPOS
 - [ ] Web app de conciliación
 
