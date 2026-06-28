@@ -10,15 +10,43 @@ export interface ResultadoIngesta {
   persistidas: number
 }
 
+// Resuelve (upsert) un Establecimiento por cada Cód. Tienda distinto y devuelve
+// el mapa codTienda → establecimientoId, para anclar los cobros a su tienda.
+async function resolverEstablecimientos(
+  tenantId: string,
+  cobros: CobroNormalizado[],
+): Promise<Map<string, string>> {
+  const nombres = new Map<string, string>()
+  for (const c of cobros) {
+    if (c.codTienda && !nombres.has(c.codTienda)) nombres.set(c.codTienda, c.tienda ?? c.codTienda)
+  }
+  const map = new Map<string, string>()
+  if (nombres.size === 0) return map
+  await withTenant(tenantId, async (tx) => {
+    for (const [cod, nombre] of nombres) {
+      const e = await tx.establecimiento.upsert({
+        where: { tenantId_codTienda: { tenantId, codTienda: cod } },
+        create: { tenantId, codTienda: cod, nombre },
+        update: {}, // no pisar el nombre si ya existe
+        select: { id: true },
+      })
+      map.set(cod, e.id)
+    }
+  })
+  return map
+}
+
 // Upsert idempotente de cobros (lado HIOPOS) por (tenantId, origenRef).
 export async function ingestarCobros(
   tenantId: string,
   cobros: CobroNormalizado[],
 ): Promise<ResultadoIngesta> {
+  const estabs = await resolverEstablecimientos(tenantId, cobros)
   return withTenant(tenantId, async (tx) => {
     let persistidas = 0
     for (const c of cobros) {
       const datos = {
+        establecimientoId: c.codTienda ? estabs.get(c.codTienda) ?? null : null,
         hioposTicketId: c.hioposTicketId,
         medioPago: c.medioPago,
         marca: c.marca,
@@ -136,6 +164,7 @@ export async function ingestarCobrosBulk(
   opciones?: { tamanoLote?: number },
 ): Promise<ResultadoIngesta> {
   const tamano = opciones?.tamanoLote ?? 1000
+  const estabs = await resolverEstablecimientos(tenantId, cobros)
   let persistidas = 0
   for (let i = 0; i < cobros.length; i += tamano) {
     const lote = cobros.slice(i, i + tamano)
@@ -143,6 +172,7 @@ export async function ingestarCobrosBulk(
       tx.cobro.createMany({
         data: lote.map((c) => ({
           tenantId,
+          establecimientoId: c.codTienda ? estabs.get(c.codTienda) ?? null : null,
           origenRef: c.origenRef,
           hioposTicketId: c.hioposTicketId,
           medioPago: c.medioPago,

@@ -39,6 +39,8 @@ export interface LiquidacionNormalizada {
 export interface CobroNormalizado {
   origenRef: string // clave natural del origen (idempotencia)
   hioposTicketId: string
+  codTienda: string | null // Cód. Tienda HIOPOS (ancla del establecimiento)
+  tienda: string | null // nombre de la tienda
   medioPago: string
   marca: string | null // marca de tarjeta (VISA/MASTERCARD/…)
   tipoTarjeta: TipoTarjeta | null // CREDITO/DEBITO (para narrowing fuzzy)

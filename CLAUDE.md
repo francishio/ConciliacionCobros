@@ -141,11 +141,12 @@ optimizado (matcher ~16s; omite `raw` vía `omitApi`). RLS completo en todas las
 **Plan acordado** (ver `docs/findings-payconcil.md`): adoptar ideas de PayConcil v2.0
 (UX + DAF) sobre nuestra base. Confirmado: `Tenant` = empresa, `Establecimiento` debajo.
 
-- **PRÓXIMO PASO — multi-establecimiento.** `Establecimiento` (= tienda) anclado al
-  `Cód. Tienda` de HIOPOS; los cobros se linkean solos al ingerir. Transacciones Payway se
-  linkean por un **mapeo** (nro establecimiento Payway → tienda), como `MapeoMedioPago`
-  (porque la numeración Payway ≠ HIOPOS). Agregar `establecimientoId` en Cobro/Transaccion
-  **con su migración RLS A MANO**. Luego el matching scopea por establecimiento.
+- **Multi-establecimiento — EN CURSO.** ✅ Entidad `Establecimiento` + `establecimientoId`
+  en Cobro/Transaccion + RLS. Los cobros HIOPOS se anclan solos por `Cód. Tienda` al ingerir
+  (validado: Rochino son **2 tiendas** — FRENCH 2153: 555 cobros · BLE URUGUAY: 1445).
+  **Falta (2/2):** linkear transacciones **Payway** por un mapeo (nro establecimiento Payway →
+  tienda, como `MapeoMedioPago`; la numeración ≠ HIOPOS) y que el **matching scopee por
+  establecimiento**.
 - **Después:** conciliación manual (grilla doble, 1:N/N:1, sugerencia=fuzzy bajo umbral,
   undo, audit) · E2 financiera (extracto bancario) · reportes 8 hojas · alertas ·
   **UX estilo PayConcil** (dark/fintech: reskin del MVP + 8 pantallas) · login (NextAuth).

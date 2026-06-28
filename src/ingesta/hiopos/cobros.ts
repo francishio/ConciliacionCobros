@@ -38,6 +38,17 @@ function mapearIndices(header: string[]): Record<ClaveCol, number> {
   return idx
 }
 
+// Columnas opcionales que cambian de nombre entre exports (p. ej. "Tienda" en
+// Rochino vs "Establecimiento" en GARDINER). Devuelve el índice o null.
+function buscarCol(header: string[], nombres: string[]): number | null {
+  const headerNorm = header.map(norm)
+  for (const n of nombres) {
+    const i = headerNorm.indexOf(norm(n))
+    if (i !== -1) return i
+  }
+  return null
+}
+
 // Importe formato AR estricto: '.' = miles, ',' = decimal. "671.000" → 671000.
 function parseImporteAr(raw: string): string {
   const s = (raw ?? '').trim().replace(/\./g, '').replace(',', '.')
@@ -86,6 +97,8 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
 
   const header = filas[0]
   const idx = mapearIndices(header)
+  const idxCodTienda = buscarCol(header, ['Cód. Tienda', 'Cód. Establecimiento'])
+  const idxTienda = buscarCol(header, ['Tienda', 'Establecimiento'])
 
   return filas.slice(1).map((c) => {
     const codDoc = (c[idx.codDoc] ?? '').trim()
@@ -95,6 +108,8 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
     return {
       origenRef: `${codDoc}|${numeroLinea}|${auth}`,
       hioposTicketId: codDoc,
+      codTienda: idxCodTienda != null ? (c[idxCodTienda] ?? '').trim() || null : null,
+      tienda: idxTienda != null ? (c[idxTienda] ?? '').trim() || null : null,
       medioPago: (c[idx.medioPago] ?? '').trim(),
       marca: (c[idx.marca] ?? '').trim() || null,
       tipoTarjeta: tipoTarjetaDe((c[idx.medioPago] ?? '').trim()),
