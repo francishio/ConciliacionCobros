@@ -147,8 +147,11 @@ optimizado (matcher ~16s; omite `raw` vía `omitApi`). RLS completo en todas las
   **Falta (2/2):** linkear transacciones **Payway** por un mapeo (nro establecimiento Payway →
   tienda, como `MapeoMedioPago`; la numeración ≠ HIOPOS) y que el **matching scopee por
   establecimiento**.
-- **Después:** conciliación manual (grilla doble, 1:N/N:1, sugerencia=fuzzy bajo umbral,
-  undo, audit) · E2 financiera (extracto bancario) · reportes 8 hojas · alertas ·
+- **Conciliación manual — backend ✅** (`src/matching/manual.ts`): `listarNoConciliados`
+  (cobros EN_REVISION/SIN_TRANSACCION + transacciones del proveedor sin match) +
+  `confirmarMatchManual` (Match MANUAL, proyecta estado, cierra excepción, guard doble-match).
+  Falta la **grilla doble (UI)** + sugerencias IA (fuzzy bajo umbral) + 1:N/N:1 + undo/audit.
+- **Después:** E2 financiera (extracto bancario) · reportes 8 hojas · alertas ·
   **UX estilo PayConcil** (dark/fintech: reskin del MVP + 8 pantallas) · login (NextAuth).
 - **Estados a adoptar:** `MANUAL_OK`, `DISPUTED` (E1); `NOT_FOUND`, `EXTRA_CREDIT`,
   `FIN_MANUAL_OK` (E2). Unir con los nuestros (que ya tienen PARCIAL/CONTRACARGO).
