@@ -22,9 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               className="flex h-12 flex-shrink-0 items-center gap-3 border-b px-5"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
-              <div className="text-[13px] font-semibold">Dashboard</div>
+              <div className="font-mono text-[11px]" style={{ color: 'var(--muted)' }}>
+                ConciliaciónCobros
+              </div>
               <div className="ml-auto font-mono text-[10.5px]" style={{ color: 'var(--muted)' }}>
-                Conciliación operativa
+                HIOPOS ↔ Payway · MVP
               </div>
             </header>
             <div className="flex-1 overflow-y-auto p-5">{children}</div>

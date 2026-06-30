@@ -1,11 +1,16 @@
-// Sidebar del shell (estilo PayConcil). Por ahora el Dashboard es la pantalla
-// activa; el resto son ítems visuales que se irán habilitando (Establecimientos,
-// Carga, Etapas, Conciliación manual, Reportes).
-const nav: { section: string; items: { icon: string; label: string; active?: boolean }[] }[] = [
+'use client'
+
+// Sidebar del shell (estilo PayConcil). Los ítems con href ya son pantallas
+// reales; el resto son placeholders que se irán habilitando (Establecimientos,
+// Carga, Etapas, Reportes).
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const nav: { section: string; items: { icon: string; label: string; href?: string }[] }[] = [
   {
     section: 'Principal',
     items: [
-      { icon: '◈', label: 'Dashboard', active: true },
+      { icon: '◈', label: 'Dashboard', href: '/' },
       { icon: '🏪', label: 'Establecimientos' },
       { icon: '↑', label: 'Cargar archivos' },
     ],
@@ -15,7 +20,7 @@ const nav: { section: string; items: { icon: string; label: string; active?: boo
     items: [
       { icon: '⇄', label: 'Etapa 1 — Operativa' },
       { icon: '🏦', label: 'Etapa 2 — Financiera' },
-      { icon: '🔗', label: 'Conciliación manual' },
+      { icon: '🔗', label: 'Conciliación manual', href: '/manual' },
     ],
   },
   {
@@ -25,6 +30,7 @@ const nav: { section: string; items: { icon: string; label: string; active?: boo
 ]
 
 export function Sidebar() {
+  const pathname = usePathname()
   return (
     <aside
       className="flex w-56 flex-shrink-0 flex-col border-r"
@@ -56,20 +62,33 @@ export function Sidebar() {
             >
               {grupo.section}
             </div>
-            {grupo.items.map((it) => (
-              <div
-                key={it.label}
-                className="mx-1.5 my-px flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[11.5px]"
-                style={
-                  it.active
-                    ? { background: 'var(--surface3)', color: 'var(--cyan)' }
-                    : { color: 'var(--muted2)', cursor: 'default' }
-                }
-              >
-                <span className="w-4 text-center text-[13px]">{it.icon}</span>
-                {it.label}
-              </div>
-            ))}
+            {grupo.items.map((it) => {
+              const active = it.href === pathname
+              const inner = (
+                <>
+                  <span className="w-4 text-center text-[13px]">{it.icon}</span>
+                  {it.label}
+                </>
+              )
+              const cls = 'mx-1.5 my-px flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[11.5px]'
+              if (it.href) {
+                return (
+                  <Link
+                    key={it.label}
+                    href={it.href}
+                    className={cls}
+                    style={active ? { background: 'var(--surface3)', color: 'var(--cyan)' } : { color: 'var(--muted2)' }}
+                  >
+                    {inner}
+                  </Link>
+                )
+              }
+              return (
+                <div key={it.label} className={cls} style={{ color: 'var(--muted)', cursor: 'default' }}>
+                  {inner}
+                </div>
+              )
+            })}
           </div>
         ))}
       </nav>
