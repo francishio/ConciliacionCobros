@@ -57,11 +57,18 @@ function parseImporteAr(raw: string): string {
   return n.toFixed(2)
 }
 
-// Fecha DD/MM/YYYY (el export trae solo fecha, sin hora).
-function parseFechaAr(raw: string): Date {
-  const m = (raw ?? '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+// Fecha DD/MM/YYYY con hora opcional. La hora puede venir:
+//   - en la misma celda "Fecha": "DD/MM/YYYY HH:MM[:SS]", o
+//   - en una columna aparte "Hora": "HH:MM[:SS]" (rawHora, tiene prioridad).
+// Si no hay hora → medianoche (comportamiento anterior). Tener hora permite
+// estrechar la ventana del matching fuzzy y desempatar cobros del mismo importe.
+function parseFechaAr(raw: string, rawHora?: string | null): Date {
+  const m = (raw ?? '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/)
   if (!m) throw new Error(`Fecha HIOPOS inválida: "${raw}"`)
-  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]))
+  let [hh, mi, ss] = [m[4], m[5], m[6]]
+  const mh = (rawHora ?? '').trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (mh) [hh, mi, ss] = [mh[1], mh[2], mh[3]]
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(hh ?? 0), Number(mi ?? 0), Number(ss ?? 0))
 }
 
 function ultimos4(numeroTarjeta: string): string | null {
@@ -99,6 +106,7 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
   const idx = mapearIndices(header)
   const idxCodTienda = buscarCol(header, ['Cód. Tienda', 'Cód. Establecimiento'])
   const idxTienda = buscarCol(header, ['Tienda', 'Establecimiento'])
+  const idxHora = buscarCol(header, ['Hora'])
 
   return filas.slice(1).map((c) => {
     const codDoc = (c[idx.codDoc] ?? '').trim()
@@ -115,7 +123,7 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
       tipoTarjeta: tipoTarjetaDe((c[idx.medioPago] ?? '').trim()),
       importe: parseImporteAr(c[idx.importe]),
       cuotas: 1, // el export no trae cuotas; default 1
-      fechaHora: parseFechaAr(c[idx.fecha]),
+      fechaHora: parseFechaAr(c[idx.fecha], idxHora != null ? c[idxHora] : null),
       codAutorizacion: auth || null,
       ultimos4: ultimos4(c[idx.numeroTarjeta]),
       raw: rawObjeto(header, c),
