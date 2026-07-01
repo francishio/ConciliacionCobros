@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Mapeo {
   id: string
@@ -27,6 +27,12 @@ export default function EstablecimientosPage() {
   const [data, setData] = useState<Data | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Auto-carga al entrar (mientras no hay login, el cliente por defecto es Rochino).
+  useEffect(() => {
+    cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function cargar() {
     setCargando(true)
@@ -195,7 +201,11 @@ function Tarjeta({
       </div>
 
       {/* Alta de mapeo */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+      <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+        <div className="mb-1.5 text-[10px]" style={{ color: 'var(--muted)' }}>
+          Agregá una pasarela (podés sumar varias: otra pasarela, o varios códigos si la tienda tiene varias terminales).
+        </div>
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={proveedor}
           onChange={(e) => setProveedor(e.target.value)}
@@ -229,6 +239,7 @@ function Tarjeta({
         >
           + Agregar
         </button>
+      </div>
       </div>
     </div>
   )
