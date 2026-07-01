@@ -121,7 +121,10 @@ function Tarjeta({
   const [guardando, setGuardando] = useState(false)
 
   async function agregar() {
-    if (!codigo.trim()) return
+    if (!codigo.trim()) {
+      setError('Ingresá el código de la pasarela antes de agregar.')
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
@@ -233,11 +236,11 @@ function Tarjeta({
         />
         <button
           onClick={agregar}
-          disabled={guardando || !codigo.trim()}
-          className="rounded-md px-3 py-1.5 text-[11px] font-semibold disabled:opacity-40"
+          disabled={guardando}
+          className="rounded-md px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
           style={{ background: 'var(--green)', color: '#04140b' }}
         >
-          + Agregar
+          {guardando ? 'Agregando…' : '+ Agregar'}
         </button>
       </div>
       </div>
