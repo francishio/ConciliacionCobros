@@ -27,6 +27,13 @@ const nav: { section: string; items: { icon: string; label: string; href?: strin
     section: 'Análisis',
     items: [{ icon: '⊡', label: 'Reportes' }],
   },
+  {
+    section: 'Configuración',
+    items: [
+      { icon: '🔑', label: 'Credenciales HIOPOS', href: '/config' },
+      { icon: '💳', label: 'Credenciales pasarelas' },
+    ],
+  },
 ]
 
 export function Sidebar() {

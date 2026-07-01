@@ -115,6 +115,7 @@ model Tenant {
   establecimientos  Establecimiento[]
   mapeosPasarela    MapeoEstablecimientoPasarela[]
   matchingProfile   MatchingProfile?
+  configHiopos      ConfigHiopos?
 
   @@map("tenant")
 }
@@ -176,6 +177,24 @@ model MapeoMedioPago {
 
   @@unique([tenantId, medioPago])
   @@map("mapeo_medio_pago")
+}
+
+// Credenciales del Bridge Hioffice (HIOPOS) por cliente + Exportation IDs.
+// La password se guarda CIFRADA (AES-256-GCM). Dos exportaciones distintas:
+// una para ventas/cobros y otra para el catálogo de tiendas.
+model ConfigHiopos {
+  id             String   @id @default(uuid())
+  tenantId       String   @unique
+  apiUser        String
+  apiPasswordEnc String? // cifrada (iv:tag:ciphertext en base64); null = sin setear
+  expIdVentas    String? // Exportation ID de Ventas/Cobros (GUID o entero, como string)
+  expIdTiendas   String? // Exportation ID de Tiendas
+  actualizadoEn  DateTime @updatedAt
+  creadoEn       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("config_hiopos")
 }
 
 model MatchingProfile {
