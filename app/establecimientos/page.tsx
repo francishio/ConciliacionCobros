@@ -26,7 +26,9 @@ export default function EstablecimientosPage() {
   const [tenant, setTenant] = useState('Rochino')
   const [data, setData] = useState<Data | null>(null)
   const [cargando, setCargando] = useState(false)
+  const [sync, setSync] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
 
   // Auto-carga al entrar (mientras no hay login, el cliente por defecto es Rochino).
   useEffect(() => {
@@ -50,6 +52,27 @@ export default function EstablecimientosPage() {
     }
   }
 
+  async function sincronizar() {
+    setSync(true)
+    setError(null)
+    setAviso(null)
+    try {
+      const res = await fetch('/api/tiendas/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenant }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo sincronizar')
+      setAviso(`Tiendas sincronizadas desde HIOPOS: ${json.sincronizadas}.`)
+      await cargar()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSync(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-5 flex items-end gap-3">
@@ -66,6 +89,15 @@ export default function EstablecimientosPage() {
             className="pc-input px-3 py-1.5 text-[12px]"
             placeholder="Cliente"
           />
+          <button
+            onClick={sincronizar}
+            disabled={sync}
+            className="rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+            style={{ background: 'var(--surface3)', color: 'var(--text)' }}
+            title="Traer las tiendas desde HIOPOS (usa las credenciales y el Exportation ID de Tiendas)"
+          >
+            {sync ? 'Sincronizando…' : '↻ Sincronizar HIOPOS'}
+          </button>
           <button
             onClick={cargar}
             disabled={cargando}
@@ -85,11 +117,19 @@ export default function EstablecimientosPage() {
           {error}
         </div>
       )}
+      {aviso && (
+        <div
+          className="mb-4 rounded-lg border px-4 py-2.5 text-[12px]"
+          style={{ borderColor: '#14532d', background: '#08220f', color: '#86efac' }}
+        >
+          {aviso}
+        </div>
+      )}
 
       {data && data.establecimientos.length === 0 && (
         <div className="pc-panel px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--muted)' }}>
-          Este cliente todavía no tiene tiendas. Se crean solas al ingerir un export de HIOPOS con columna “Cód.
-          Tienda”.
+          Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba) o se crean solas al
+          ingerir un export de HIOPOS con columna “Cód. Tienda”.
         </div>
       )}
 
