@@ -11,7 +11,7 @@ const nav: { section: string; items: { icon: string; label: string; href?: strin
     section: 'Principal',
     items: [
       { icon: '◈', label: 'Dashboard', href: '/' },
-      { icon: '🏪', label: 'Establecimientos' },
+      { icon: '🏪', label: 'Establecimientos', href: '/establecimientos' },
       { icon: '↑', label: 'Cargar archivos' },
     ],
   },

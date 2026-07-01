@@ -113,6 +113,7 @@ model Tenant {
   retenciones       Retencion[]
   mapeosMedioPago   MapeoMedioPago[]
   establecimientos  Establecimiento[]
+  mapeosPasarela    MapeoEstablecimientoPasarela[]
   matchingProfile   MatchingProfile?
 
   @@map("tenant")
@@ -133,9 +134,32 @@ model Establecimiento {
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   cobros        Cobro[]
   transacciones Transaccion[]
+  mapeosPasarela MapeoEstablecimientoPasarela[]
 
   @@unique([tenantId, codTienda])
   @@map("establecimiento")
+}
+
+// Mapea el código de establecimiento/terminal de una pasarela (Payway, MP, …) a
+// una tienda HIOPOS. Permite asociar cada transacción de pasarela a su
+// establecimiento y conciliar por tienda. Un código pertenece a una sola tienda;
+// una tienda puede tener varios códigos (varias terminales) por proveedor.
+model MapeoEstablecimientoPasarela {
+  id                String    @id @default(uuid())
+  tenantId          String
+  establecimientoId String
+  proveedor         Proveedor
+  codigoExterno     String // nro de establecimiento/terminal de la pasarela
+  descripcion       String? // etiqueta libre opcional (ej. "Caja 1")
+  activo            Boolean   @default(true)
+  creadoEn          DateTime  @default(now())
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  establecimiento Establecimiento @relation(fields: [establecimientoId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, proveedor, codigoExterno])
+  @@index([establecimientoId])
+  @@map("mapeo_establecimiento_pasarela")
 }
 
 // Mapea cada medio de pago de HIOPOS a la conciliación (proveedor) a la que
