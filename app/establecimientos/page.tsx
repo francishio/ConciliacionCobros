@@ -15,8 +15,7 @@ interface Establecimiento {
   direccion: string | null
   localidad: string | null
   provincia: string | null
-  cobros: number
-  transacciones: number
+  grupo: string | null
   mapeos: Mapeo[]
 }
 interface Data {
@@ -32,8 +31,8 @@ export default function EstablecimientosPage() {
   const [sync, setSync] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [abierta, setAbierta] = useState<string | null>(null)
 
-  // Auto-carga al entrar (mientras no hay login, el cliente por defecto es Rochino).
   useEffect(() => {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,12 +76,12 @@ export default function EstablecimientosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-5 flex items-end gap-3">
         <div>
           <h1 className="text-lg font-bold tracking-tight">Establecimientos</h1>
           <p className="mt-1 text-[12.5px]" style={{ color: 'var(--muted2)' }}>
-            Tus tiendas HIOPOS. En cada una, mapeá el código de establecimiento/terminal de cada pasarela.
+            Tus tiendas HIOPOS. Tocá una fila para mapear el código de cada pasarela.
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
@@ -131,30 +130,62 @@ export default function EstablecimientosPage() {
 
       {data && data.establecimientos.length === 0 && (
         <div className="pc-panel px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--muted)' }}>
-          Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba) o se crean solas al
-          ingerir un export de HIOPOS con columna “Cód. Tienda”.
+          Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba).
         </div>
       )}
 
-      <div className="space-y-3">
-        {data?.establecimientos.map((e) => (
-          <Tarjeta key={e.id} estab={e} tenant={tenant} proveedores={data.proveedores} onChange={cargar} setError={setError} />
-        ))}
-      </div>
+      {data && data.establecimientos.length > 0 && (
+        <div className="pc-panel overflow-hidden">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr
+                className="text-left text-[9.5px] uppercase tracking-wide"
+                style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}
+              >
+                <th className="px-3 py-2.5 font-semibold">Código</th>
+                <th className="px-3 py-2.5 font-semibold">Tienda</th>
+                <th className="px-3 py-2.5 font-semibold">Dirección</th>
+                <th className="px-3 py-2.5 font-semibold">Población</th>
+                <th className="px-3 py-2.5 font-semibold">Provincia</th>
+                <th className="px-3 py-2.5 font-semibold">Grupo</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Pasarelas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.establecimientos.map((e) => (
+                <FilaTienda
+                  key={e.id}
+                  estab={e}
+                  tenant={tenant}
+                  proveedores={data.proveedores}
+                  abierta={abierta === e.id}
+                  onToggle={() => setAbierta(abierta === e.id ? null : e.id)}
+                  onChange={cargar}
+                  setError={setError}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
 
-function Tarjeta({
+function FilaTienda({
   estab,
   tenant,
   proveedores,
+  abierta,
+  onToggle,
   onChange,
   setError,
 }: {
   estab: Establecimiento
   tenant: string
   proveedores: string[]
+  abierta: boolean
+  onToggle: () => void
   onChange: () => void
   setError: (s: string | null) => void
 }) {
@@ -204,94 +235,119 @@ function Tarjeta({
     }
   }
 
+  const celda = 'px-3 py-2.5 align-top'
   return (
-    <div className="pc-panel p-4">
-      <div className="flex items-center gap-3">
-        <span className="text-base">🏪</span>
-        <div>
-          <div className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>
-            {estab.nombre}
-          </div>
-          <div className="font-mono text-[10px]" style={{ color: 'var(--muted)' }}>
-            {estab.codTienda ? `Cód. Tienda ${estab.codTienda}` : 'sin cód.'} · {estab.cobros} cobros ·{' '}
-            {estab.transacciones} transacciones
-          </div>
-          {(estab.direccion || estab.localidad || estab.provincia) && (
-            <div className="text-[10px]" style={{ color: 'var(--muted2)' }}>
-              📍 {[estab.direccion, estab.localidad, estab.provincia].filter(Boolean).join(', ')}
-            </div>
+    <>
+      <tr
+        onClick={onToggle}
+        className="cursor-pointer"
+        style={{ borderBottom: '1px solid var(--border)', background: abierta ? 'var(--surface2)' : 'transparent' }}
+      >
+        <td className={`${celda} font-mono`} style={{ color: 'var(--cyan)' }}>
+          {estab.codTienda ?? '—'}
+        </td>
+        <td className={celda} style={{ color: 'var(--text)' }}>
+          {estab.nombre}
+        </td>
+        <td className={celda} style={{ color: 'var(--muted2)' }}>
+          {estab.direccion ?? '—'}
+        </td>
+        <td className={celda} style={{ color: 'var(--muted2)' }}>
+          {estab.localidad ?? '—'}
+        </td>
+        <td className={celda} style={{ color: 'var(--muted2)' }}>
+          {estab.provincia ?? '—'}
+        </td>
+        <td className={celda}>
+          {estab.grupo ? (
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+              style={{ background: 'var(--surface3)', color: 'var(--muted2)' }}
+            >
+              {estab.grupo}
+            </span>
+          ) : (
+            '—'
           )}
-        </div>
-      </div>
+        </td>
+        <td className={`${celda} text-right`} style={{ color: 'var(--muted)' }}>
+          <span className="font-mono">{estab.mapeos.length}</span>
+          <span className="ml-1.5 text-[10px]">{abierta ? '▲' : '▼'}</span>
+        </td>
+      </tr>
 
-      {/* Mapeos existentes */}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {estab.mapeos.length === 0 && (
-          <span className="text-[11px]" style={{ color: 'var(--muted)' }}>
-            Sin pasarelas mapeadas.
-          </span>
-        )}
-        {estab.mapeos.map((m) => (
-          <span
-            key={m.id}
-            className="flex items-center gap-2 rounded-md px-2.5 py-1 text-[11px]"
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border2)' }}
-          >
-            <span className="font-semibold" style={{ color: m.proveedor === 'PAYWAY' ? 'var(--cyan)' : 'var(--purple)' }}>
-              {m.proveedor}
-            </span>
-            <span className="font-mono" style={{ color: 'var(--text)' }}>
-              {m.codigoExterno}
-            </span>
-            {m.descripcion && <span style={{ color: 'var(--muted)' }}>· {m.descripcion}</span>}
-            <button onClick={() => borrar(m.id)} className="ml-1" style={{ color: 'var(--muted)' }} title="Quitar">
-              ✕
-            </button>
-          </span>
-        ))}
-      </div>
+      {abierta && (
+        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
+          <td colSpan={7} className="px-4 pb-4 pt-1">
+            {/* Chips de pasarelas mapeadas */}
+            <div className="mb-3 flex flex-wrap gap-2">
+              {estab.mapeos.length === 0 && (
+                <span className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                  Sin pasarelas mapeadas.
+                </span>
+              )}
+              {estab.mapeos.map((m) => (
+                <span
+                  key={m.id}
+                  className="flex items-center gap-2 rounded-md px-2.5 py-1 text-[11px]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border2)' }}
+                >
+                  <span
+                    className="font-semibold"
+                    style={{ color: m.proveedor === 'PAYWAY' ? 'var(--cyan)' : 'var(--purple)' }}
+                  >
+                    {m.proveedor}
+                  </span>
+                  <span className="font-mono" style={{ color: 'var(--text)' }}>
+                    {m.codigoExterno}
+                  </span>
+                  {m.descripcion && <span style={{ color: 'var(--muted)' }}>· {m.descripcion}</span>}
+                  <button onClick={() => borrar(m.id)} className="ml-1" style={{ color: 'var(--muted)' }} title="Quitar">
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
 
-      {/* Alta de mapeo */}
-      <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-        <div className="mb-1.5 text-[10px]" style={{ color: 'var(--muted)' }}>
-          Agregá una pasarela (podés sumar varias: otra pasarela, o varios códigos si la tienda tiene varias terminales).
-        </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={proveedor}
-          onChange={(e) => setProveedor(e.target.value)}
-          className="pc-input px-2 py-1.5 text-[11px]"
-        >
-          {proveedores.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <input
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          placeholder="Código establecimiento/terminal"
-          className="pc-input flex-1 px-2 py-1.5 text-[11px]"
-          style={{ minWidth: 180 }}
-        />
-        <input
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-          placeholder="Etiqueta (opc.)"
-          className="pc-input px-2 py-1.5 text-[11px]"
-          style={{ width: 130 }}
-        />
-        <button
-          onClick={agregar}
-          disabled={guardando}
-          className="rounded-md px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
-          style={{ background: 'var(--green)', color: '#04140b' }}
-        >
-          {guardando ? 'Agregando…' : '+ Agregar'}
-        </button>
-      </div>
-      </div>
-    </div>
+            {/* Alta de mapeo */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={proveedor}
+                onChange={(e) => setProveedor(e.target.value)}
+                className="pc-input px-2 py-1.5 text-[11px]"
+              >
+                {proveedores.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="Código establecimiento/terminal"
+                className="pc-input flex-1 px-2 py-1.5 text-[11px]"
+                style={{ minWidth: 180 }}
+              />
+              <input
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Etiqueta (opc.)"
+                className="pc-input px-2 py-1.5 text-[11px]"
+                style={{ width: 130 }}
+              />
+              <button
+                onClick={agregar}
+                disabled={guardando}
+                className="rounded-md px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                style={{ background: 'var(--green)', color: '#04140b' }}
+              >
+                {guardando ? 'Agregando…' : '+ Agregar'}
+              </button>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

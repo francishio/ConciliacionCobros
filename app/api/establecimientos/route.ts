@@ -44,6 +44,7 @@ export async function GET(req: Request): Promise<Response> {
         direccion: e.direccion,
         localidad: e.localidad,
         provincia: e.provincia,
+        grupo: e.grupo,
         cobros: e._count.cobros,
         transacciones: e._count.transacciones,
         mapeos: e.mapeosPasarela.map((m) => ({
