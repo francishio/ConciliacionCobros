@@ -12,6 +12,9 @@ interface Establecimiento {
   id: string
   nombre: string
   codTienda: string | null
+  direccion: string | null
+  localidad: string | null
+  provincia: string | null
   cobros: number
   transacciones: number
   mapeos: Mapeo[]
@@ -213,6 +216,11 @@ function Tarjeta({
             {estab.codTienda ? `Cód. Tienda ${estab.codTienda}` : 'sin cód.'} · {estab.cobros} cobros ·{' '}
             {estab.transacciones} transacciones
           </div>
+          {(estab.direccion || estab.localidad || estab.provincia) && (
+            <div className="text-[10px]" style={{ color: 'var(--muted2)' }}>
+              📍 {[estab.direccion, estab.localidad, estab.provincia].filter(Boolean).join(', ')}
+            </div>
+          )}
         </div>
       </div>
 

@@ -124,13 +124,23 @@ model Tenant {
 // se anclan por su "Cód. Tienda"; las transacciones de pasarela se linkean por
 // mapeo (la numeración difiere por proveedor). La conciliación scopea por acá.
 model Establecimiento {
-  id        String   @id @default(uuid())
-  tenantId  String
-  nombre    String
-  codTienda String? // Cód. Tienda de HIOPOS (ancla de los cobros)
-  tipo      String? // physical / digital
-  activo    Boolean  @default(true)
-  creadoEn  DateTime @default(now())
+  id           String   @id @default(uuid())
+  tenantId     String
+  nombre       String
+  codTienda    String? // Cód. Tienda de HIOPOS (ancla de los cobros)
+  tipo         String? // physical / digital
+  nombreFiscal String? // razón social
+  cuit         String? // Nif / CUIT
+  direccion    String? // datos del catálogo de tiendas de HIOPOS
+  localidad    String? // población / localidad / ciudad
+  provincia    String?
+  codigoPostal String?
+  grupo        String? // Grupo Tiendas
+  telefono     String?
+  email        String?
+  raw          Json? // fila completa del export de Tiendas (lo no mapeado explícito)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   cobros        Cobro[]

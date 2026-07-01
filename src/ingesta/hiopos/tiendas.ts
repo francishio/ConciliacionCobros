@@ -10,6 +10,16 @@ export interface TiendaNormalizada {
   codTienda: string
   nombre: string
   tipo: string | null
+  nombreFiscal: string | null
+  cuit: string | null
+  direccion: string | null
+  localidad: string | null
+  provincia: string | null
+  codigoPostal: string | null
+  grupo: string | null
+  telefono: string | null
+  email: string | null
+  raw: Record<string, string> // fila completa (header → valor)
 }
 
 const norm = (s: string) => (s ?? '').normalize('NFC').trim()
@@ -24,26 +34,66 @@ function buscar(header: string[], nombres: string[]): number | null {
 }
 
 const COD = ['Cód. Tienda', 'Cod. Tienda', 'Código Tienda', 'Codigo Tienda', 'Cód. Establecimiento', 'Código', 'Codigo', 'Cód.', 'Id Tienda', 'IdTienda']
-const NOM = ['Nombre', 'Tienda', 'Establecimiento', 'Nombre Tienda', 'Descripción', 'Descripcion', 'Razón Social', 'Razon Social']
+const NOM = ['Tienda', 'Nombre', 'Establecimiento', 'Nombre Tienda', 'Descripción', 'Descripcion']
+const NOMFISCAL = ['Nombre Fiscal', 'Razón Social', 'Razon Social']
+const NIF = ['Nif', 'NIF', 'CUIT', 'CUIL', 'C.U.I.T.', 'Cuit']
 const TIP = ['Tipo', 'Tipo Tienda']
+const DIR = ['Dirección', 'Direccion', 'Domicilio', 'Calle']
+const LOC = ['Población', 'Poblacion', 'Localidad', 'Ciudad']
+const PROV = ['Provincia', 'Estado']
+const CP = ['Código Postal', 'Codigo Postal', 'CP', 'C.P.', 'Cód. Postal']
+const GRUPO = ['Grupo Tiendas', 'Grupo']
+const TEL = ['Teléfono', 'Telefono', 'Tel', 'Tel.']
+const MAIL = ['Email', 'E-mail', 'Correo', 'Correo Electrónico']
 
 function desdeFilas(header: string[], filas: string[][]): TiendaNormalizada[] {
   const iCod = buscar(header, COD)
-  const iNom = buscar(header, NOM)
-  const iTip = buscar(header, TIP)
   if (iCod == null) {
     throw new Error(
       `No encuentro la columna de código de tienda en la exportación. Header recibido: ${header.join(' | ')}`,
     )
   }
+  const iNom = buscar(header, NOM)
+  const cols = {
+    tipo: buscar(header, TIP),
+    nombreFiscal: buscar(header, NOMFISCAL),
+    cuit: buscar(header, NIF),
+    direccion: buscar(header, DIR),
+    localidad: buscar(header, LOC),
+    provincia: buscar(header, PROV),
+    codigoPostal: buscar(header, CP),
+    grupo: buscar(header, GRUPO),
+    telefono: buscar(header, TEL),
+    email: buscar(header, MAIL),
+  }
+  const val = (f: string[], i: number | null) => (i != null ? norm(f[i] ?? '') || null : null)
+  const hdr = header.map(norm)
+
   const vistos = new Set<string>()
   const out: TiendaNormalizada[] = []
   for (const f of filas) {
     const codTienda = norm(f[iCod] ?? '')
     if (!codTienda || vistos.has(codTienda)) continue
     vistos.add(codTienda)
-    const nombre = (iNom != null ? norm(f[iNom] ?? '') : '') || `Tienda ${codTienda}`
-    out.push({ codTienda, nombre, tipo: iTip != null ? norm(f[iTip] ?? '') || null : null })
+    const raw: Record<string, string> = {}
+    hdr.forEach((h, i) => {
+      raw[h] = f[i] ?? ''
+    })
+    out.push({
+      codTienda,
+      nombre: (iNom != null ? norm(f[iNom] ?? '') : '') || `Tienda ${codTienda}`,
+      tipo: val(f, cols.tipo),
+      nombreFiscal: val(f, cols.nombreFiscal),
+      cuit: val(f, cols.cuit),
+      direccion: val(f, cols.direccion),
+      localidad: val(f, cols.localidad),
+      provincia: val(f, cols.provincia),
+      codigoPostal: val(f, cols.codigoPostal),
+      grupo: val(f, cols.grupo),
+      telefono: val(f, cols.telefono),
+      email: val(f, cols.email),
+      raw,
+    })
   }
   return out
 }

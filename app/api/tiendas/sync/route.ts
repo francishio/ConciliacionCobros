@@ -42,10 +42,25 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'La exportación no trajo tiendas.' }, { status: 422 })
 
     for (const t2 of tiendas) {
+      const datos = {
+        nombre: t2.nombre,
+        tipo: t2.tipo,
+        nombreFiscal: t2.nombreFiscal,
+        cuit: t2.cuit,
+        direccion: t2.direccion,
+        localidad: t2.localidad,
+        provincia: t2.provincia,
+        codigoPostal: t2.codigoPostal,
+        grupo: t2.grupo,
+        telefono: t2.telefono,
+        email: t2.email,
+        raw: t2.raw,
+        activo: true,
+      }
       await adminDb.establecimiento.upsert({
         where: { tenantId_codTienda: { tenantId: t.id, codTienda: t2.codTienda } },
-        create: { tenantId: t.id, codTienda: t2.codTienda, nombre: t2.nombre, tipo: t2.tipo, activo: true },
-        update: { nombre: t2.nombre, tipo: t2.tipo, activo: true },
+        create: { tenantId: t.id, codTienda: t2.codTienda, ...datos },
+        update: datos,
       })
     }
 

@@ -94,10 +94,13 @@ export class HioposBridgeClient {
     })
     if (!res.ok) throw new Error(`Exportación Bridge falló: ${res.status} ${res.statusText}`)
 
-    const data = (await res.json()) as {
-      exportedDocs?: { name: string; data: string; type: number }[]
-    }
-    return (data.exportedDocs ?? []).map((d) => ({
+    // La respuesta es un ARRAY de block-actions; los documentos vienen en
+    // `exportedDocs` DENTRO de cada elemento (no en el nivel raíz).
+    type Doc = { name: string; data: string; type: number }
+    const json = (await res.json()) as unknown
+    const elementos = Array.isArray(json) ? json : [json]
+    const docs: Doc[] = elementos.flatMap((e) => (e as { exportedDocs?: Doc[] })?.exportedDocs ?? [])
+    return docs.map((d) => ({
       name: d.name,
       type: d.type as TipoDoc,
       dataBase64: d.data,
