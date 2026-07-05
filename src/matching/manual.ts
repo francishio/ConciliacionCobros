@@ -5,7 +5,6 @@
 //
 // TODO: matches 1:N / N:1 (cuotas / depósito agrupado) — hoy 1:1; sugerencias
 // "IA" (fuzzy de baja confianza); reason_code + free_text si fuera de tolerancia.
-import type { Proveedor } from '@prisma/client'
 import { withTenant } from '../db/tenant'
 import { estadoOperativaPorMonto } from './estado'
 import type { CobroMatch, TransaccionMatch } from './tipos'
@@ -18,7 +17,7 @@ export interface NoConciliados {
 // Cobros en revisión / sin transacción + transacciones del proveedor sin match.
 export async function listarNoConciliados(
   tenantId: string,
-  proveedor: Proveedor,
+  proveedor: string,
 ): Promise<NoConciliados> {
   return withTenant(tenantId, async (tx) => {
     const cobros = await tx.cobro.findMany({

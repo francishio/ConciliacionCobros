@@ -6,7 +6,7 @@
 // Escala: hace LECTURA → CÓMPUTO en memoria → ESCRITURA en lotes
 // (createMany / updateMany), así un mes completo (miles de cobros) no excede el
 // timeout de transacción. La asignación es 1:1 (una transacción no se reusa).
-import type { EstadoOperativa, Proveedor, TipoExcepcion } from '@prisma/client'
+import type { EstadoOperativa, TipoExcepcion } from '@prisma/client'
 import { withTenant } from '../db/tenant'
 import { indexarTransacciones, matchDeterministico } from './deterministico'
 import { matchFuzzy } from './fuzzy'
@@ -14,7 +14,7 @@ import { estadoOperativaPorMonto } from './estado'
 import type { TransaccionMatch } from './tipos'
 
 export interface ResultadoConciliacionOperativa {
-  proveedor: Proveedor
+  proveedor: string
   cobrosPendientes: number
   procesados: number
   deterministico: number
@@ -44,7 +44,7 @@ const LOTE = 500
 
 export async function conciliarOperativa(
   tenantId: string,
-  proveedor: Proveedor,
+  proveedor: string,
 ): Promise<ResultadoConciliacionOperativa> {
   // ─── 1. LECTURA ───────────────────────────────────────────────────
   const datos = await withTenant(tenantId, async (tx) => ({

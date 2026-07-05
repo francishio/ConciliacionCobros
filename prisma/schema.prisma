@@ -36,9 +36,20 @@ enum EstadoFinanciera {
   NO_APLICA
 }
 
-enum Proveedor {
-  MERCADOPAGO
-  PAYWAY
+// Catálogo de pasarelas de cobro (Payway, MercadoPago, Clover/Fiserv, …).
+// Global (no por-tenant): define el universo; qué usa cada cliente lo captura
+// MapeoEstablecimientoPasarela. Los campos `proveedor` de las otras tablas
+// guardan el `codigo` de acá.
+model Pasarela {
+  id          String   @id @default(uuid())
+  codigo      String   @unique // clave estable: 'PAYWAY', 'MERCADOPAGO', …
+  nombre      String // etiqueta visible: 'Payway', 'Mercado Pago'
+  tipoIngesta String   @default("PENDIENTE") // ARCHIVO | API | PENDIENTE (informativo)
+  activo      Boolean  @default(true)
+  orden       Int      @default(100)
+  creadoEn    DateTime @default(now())
+
+  @@map("pasarela")
 }
 
 enum EstadoTransaccion {
@@ -159,7 +170,7 @@ model MapeoEstablecimientoPasarela {
   id                String    @id @default(uuid())
   tenantId          String
   establecimientoId String
-  proveedor         Proveedor
+  proveedor         String // codigo de Pasarela (ej. 'PAYWAY')
   codigoExterno     String // nro de establecimiento/terminal de la pasarela
   descripcion       String? // etiqueta libre opcional (ej. "Caja 1")
   activo            Boolean   @default(true)
@@ -180,7 +191,7 @@ model MapeoMedioPago {
   id        String     @id @default(uuid())
   tenantId  String
   medioPago String // string exacto del export HIOPOS (ej. "Payway", "Mercadopago MANUAL", "EFECTIVO")
-  proveedor Proveedor? // a qué conciliación pertenece; null = NO CONCILIABLE
+  proveedor String? // codigo de Pasarela; null = NO CONCILIABLE
   creadoEn  DateTime   @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -255,7 +266,7 @@ model Transaccion {
   id                String            @id @default(uuid())
   tenantId          String
   establecimientoId String?
-  proveedor         Proveedor
+  proveedor         String // codigo de Pasarela (ej. 'PAYWAY')
   idExterno         String // MP payment_id / Payway TID
   importeBruto      Decimal           @db.Decimal(12, 2)
   cuotas            Int               @default(1)
@@ -285,7 +296,7 @@ model Transaccion {
 model Liquidacion {
   id                String   @id @default(uuid())
   tenantId          String
-  proveedor         Proveedor
+  proveedor         String // codigo de Pasarela (ej. 'PAYWAY')
   fechaAcreditacion DateTime @db.Date
   netoTotal         Decimal  @db.Decimal(14, 2)
   creadoEn          DateTime @default(now())

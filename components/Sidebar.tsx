@@ -31,6 +31,7 @@ const nav: { section: string; items: { icon: string; label: string; href?: strin
     section: 'Configuración',
     items: [
       { icon: '🔑', label: 'Credenciales HIOPOS', href: '/config' },
+      { icon: '🔀', label: 'Pasarelas', href: '/pasarelas' },
       { icon: '💳', label: 'Credenciales pasarelas' },
     ],
   },

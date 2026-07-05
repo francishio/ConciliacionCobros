@@ -1,10 +1,10 @@
 // Tipos normalizados de ingesta — independientes del proveedor.
 // Los adaptadores mapean su fuente (API, webhook, archivo) a estas formas;
 // la persistencia las baja al modelo canónico de Prisma.
-import type { EstadoTransaccion, Proveedor, TipoMovimiento, TipoTarjeta } from '@prisma/client'
+import type { EstadoTransaccion, TipoMovimiento, TipoTarjeta } from '@prisma/client'
 
 export interface TransaccionNormalizada {
-  proveedor: Proveedor
+  proveedor: string
   idExterno: string // MP payment_id / Payway TID
   importeBruto: string // decimal como string para no perder precisión
   cuotas: number
@@ -29,7 +29,7 @@ export interface LiquidacionLineaNormalizada {
 }
 
 export interface LiquidacionNormalizada {
-  proveedor: Proveedor
+  proveedor: string
   fechaAcreditacion: Date
   netoTotal: string
   lineas: LiquidacionLineaNormalizada[]

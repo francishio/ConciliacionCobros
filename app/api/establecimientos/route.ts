@@ -6,13 +6,10 @@
 //
 // MVP: el tenant se resuelve por nombre (sin login todavía).
 import { NextResponse } from 'next/server'
-import type { Proveedor } from '@prisma/client'
 import { adminDb } from '@/src/db/admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-const PROVEEDORES: Proveedor[] = ['PAYWAY', 'MERCADOPAGO']
 
 async function tenantIdPorNombre(nombre: string): Promise<string | null> {
   const t = await adminDb.tenant.findFirst({ where: { nombre }, select: { id: true } })
@@ -25,18 +22,25 @@ export async function GET(req: Request): Promise<Response> {
     const tenantId = await tenantIdPorNombre(nombre)
     if (!tenantId) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
 
-    const establecimientos = await adminDb.establecimiento.findMany({
-      where: { tenantId },
-      orderBy: [{ codTienda: 'asc' }, { nombre: 'asc' }],
-      include: {
-        mapeosPasarela: { orderBy: { creadoEn: 'asc' } },
-        _count: { select: { cobros: true, transacciones: true } },
-      },
-    })
+    const [establecimientos, pasarelas] = await Promise.all([
+      adminDb.establecimiento.findMany({
+        where: { tenantId },
+        orderBy: [{ codTienda: 'asc' }, { nombre: 'asc' }],
+        include: {
+          mapeosPasarela: { orderBy: { creadoEn: 'asc' } },
+          _count: { select: { cobros: true, transacciones: true } },
+        },
+      }),
+      adminDb.pasarela.findMany({
+        where: { activo: true },
+        orderBy: { orden: 'asc' },
+        select: { codigo: true, nombre: true },
+      }),
+    ])
 
     return NextResponse.json({
       tenant: nombre,
-      proveedores: PROVEEDORES,
+      proveedores: pasarelas,
       establecimientos: establecimientos.map((e) => ({
         id: e.id,
         nombre: e.nombre,
@@ -71,17 +75,19 @@ export async function POST(req: Request): Promise<Response> {
     }
     const nombre = (b.tenant ?? '').trim() || 'Demo'
     const codigoExterno = (b.codigoExterno ?? '').trim()
-    if (!b.establecimientoId || !b.proveedor || !codigoExterno)
+    const proveedor = (b.proveedor ?? '').trim()
+    if (!b.establecimientoId || !proveedor || !codigoExterno)
       return NextResponse.json({ error: 'Faltan establecimiento, proveedor y/o código.' }, { status: 400 })
-    if (!PROVEEDORES.includes(b.proveedor as Proveedor))
-      return NextResponse.json({ error: `Proveedor inválido: ${b.proveedor}.` }, { status: 400 })
+    const pasarela = await adminDb.pasarela.findUnique({ where: { codigo: proveedor }, select: { activo: true } })
+    if (!pasarela || !pasarela.activo)
+      return NextResponse.json({ error: `Pasarela inválida o inactiva: ${proveedor}.` }, { status: 400 })
 
     const tenantId = await tenantIdPorNombre(nombre)
     if (!tenantId) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
 
     // El código debe pertenecer a una sola tienda (unique tenant+proveedor+código).
     const ya = await adminDb.mapeoEstablecimientoPasarela.findFirst({
-      where: { tenantId, proveedor: b.proveedor as Proveedor, codigoExterno },
+      where: { tenantId, proveedor, codigoExterno },
       include: { establecimiento: { select: { nombre: true } } },
     })
     if (ya)
@@ -94,7 +100,7 @@ export async function POST(req: Request): Promise<Response> {
       data: {
         tenantId,
         establecimientoId: b.establecimientoId,
-        proveedor: b.proveedor as Proveedor,
+        proveedor,
         codigoExterno,
         descripcion: (b.descripcion ?? '').trim() || null,
       },

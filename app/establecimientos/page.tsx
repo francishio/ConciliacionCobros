@@ -18,9 +18,13 @@ interface Establecimiento {
   grupo: string | null
   mapeos: Mapeo[]
 }
+interface Pasarela {
+  codigo: string
+  nombre: string
+}
 interface Data {
   tenant: string
-  proveedores: string[]
+  proveedores: Pasarela[]
   establecimientos: Establecimiento[]
 }
 
@@ -183,13 +187,13 @@ function FilaTienda({
 }: {
   estab: Establecimiento
   tenant: string
-  proveedores: string[]
+  proveedores: Pasarela[]
   abierta: boolean
   onToggle: () => void
   onChange: () => void
   setError: (s: string | null) => void
 }) {
-  const [proveedor, setProveedor] = useState(proveedores[0] ?? 'PAYWAY')
+  const [proveedor, setProveedor] = useState(proveedores[0]?.codigo ?? 'PAYWAY')
   const [codigo, setCodigo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -317,8 +321,8 @@ function FilaTienda({
                 className="pc-input px-2 py-1.5 text-[11px]"
               >
                 {proveedores.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                  <option key={p.codigo} value={p.codigo}>
+                    {p.nombre}
                   </option>
                 ))}
               </select>
