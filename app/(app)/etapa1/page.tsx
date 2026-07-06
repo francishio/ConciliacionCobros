@@ -52,6 +52,8 @@ const fmtMonto = (s: string) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(Number(s))
 const fmtFecha = (s: string) =>
   new Date(s).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const trunc = (s: string, n = 30) => (s.length > n ? s.slice(0, n) + '…' : s)
+const SIN_MATCH: Item['tipo'][] = ['EN_REVISION', 'SIN_TRANSACCION', 'PASARELA_SIN_MATCH']
 
 export default function Etapa1Page() {
   const [data, setData] = useState<Data | null>(null)
@@ -107,9 +109,12 @@ export default function Etapa1Page() {
 
   const r = data?.resumen?.resultado
   const pasarelas = [...new Set((data?.items ?? []).map((i) => i.pasarela).filter(Boolean))] as string[]
-  const items = (data?.items ?? []).filter(
-    (i) => (!fPasarela || i.pasarela === fPasarela) && (!fEstado || i.tipo === fEstado),
-  )
+  const items = (data?.items ?? []).filter((i) => {
+    if (fPasarela && i.pasarela !== fPasarela) return false
+    if (!fEstado) return true
+    if (fEstado === 'NO_CONCILIADOS') return SIN_MATCH.includes(i.tipo)
+    return i.tipo === fEstado
+  })
   const cobroSel = data?.items.find((i) => i.cobro?.id === selCobro)?.cobro
   const transSel = data?.items.find((i) => i.trans?.id === selTrans)?.trans
   const dif = cobroSel && transSel ? Number(cobroSel.monto) - Number(transSel.monto) : null
@@ -176,6 +181,7 @@ export default function Etapa1Page() {
             <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="pc-input px-2 py-1 text-[11px]">
               <option value="">Todos los estados</option>
               <option value="CONCILIADO">Conciliados</option>
+              <option value="NO_CONCILIADOS">No conciliados</option>
               <option value="DIFERENCIA">Diferencia de monto</option>
               <option value="EN_REVISION">En revisión</option>
               <option value="SIN_TRANSACCION">HIOPOS sin match</option>
@@ -234,8 +240,8 @@ export default function Etapa1Page() {
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
                           {fecha ? fmtFecha(fecha) : '—'}
                         </td>
-                        <td className="px-2 py-1.5" style={{ color: 'var(--muted2)' }}>
-                          {it.cobro?.tienda ?? '—'}
+                        <td className="px-2 py-1.5" style={{ color: 'var(--muted2)' }} title={it.cobro?.tienda ?? undefined}>
+                          {it.cobro?.tienda ? trunc(it.cobro.tienda) : '—'}
                         </td>
                         <td className="px-2 py-1.5" style={{ color: it.cobro ? 'var(--text)' : 'var(--muted)' }}>
                           {it.cobro?.medioPago ?? '—'}
