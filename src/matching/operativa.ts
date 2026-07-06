@@ -57,7 +57,7 @@ export async function conciliarOperativa(
 
   const tolMonto = datos.profile ? Number(datos.profile.tolMonto) : 0
   const ventanaMin = datos.profile?.ventanaMin ?? 5
-  const provDeMedio = new Map(datos.mapeos.map((m) => [m.medioPago, m.proveedor]))
+  const provDeMedio = new Map(datos.mapeos.map((m) => [m.codMedioPago, m.proveedor]))
 
   // ─── 2. CÓMPUTO (en memoria) ──────────────────────────────────────
   const planMatches: PlanMatch[] = []
@@ -98,8 +98,9 @@ export async function conciliarOperativa(
   }
 
   for (const cobro of datos.cobros) {
-    if (!provDeMedio.has(cobro.medioPago)) { r.sinMapeo++; continue }
-    const prov = provDeMedio.get(cobro.medioPago) ?? null
+    const claveMedio = cobro.codMedioPago ?? ''
+    if (!provDeMedio.has(claveMedio)) { r.sinMapeo++; continue }
+    const prov = provDeMedio.get(claveMedio) ?? null
     if (prov === null) { setEstado('NO_APLICA', cobro.id); r.noAplica++; continue }
     if (prov !== proveedor) continue
     r.procesados++

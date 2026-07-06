@@ -52,8 +52,8 @@ export async function resumenMes(tenantId: string, periodo: string): Promise<Res
         _count: { _all: true },
       }),
       adminDb.establecimiento.findMany({ where: { tenantId }, select: { id: true, nombre: true, codTienda: true } }),
-      adminDb.cobro.groupBy({ by: ['medioPago'], where: { tenantId, periodo }, _count: { _all: true } }),
-      adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { medioPago: true, proveedor: true } }),
+      adminDb.cobro.groupBy({ by: ['codMedioPago'], where: { tenantId, periodo }, _count: { _all: true } }),
+      adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { codMedioPago: true, proveedor: true } }),
       adminDb.pasarela.findMany({ select: { codigo: true, nombre: true } }),
       adminDb.transaccion.groupBy({ by: ['proveedor'], where: { tenantId, periodo }, _count: { _all: true } }),
     ])
@@ -86,14 +86,14 @@ export async function resumenMes(tenantId: string, periodo: string): Promise<Res
     .filter((e) => e.total > 0)
     .sort((a, b) => b.total - a.total)
 
-  // Cobertura: cobros por pasarela (vía medio de pago) vs extracto (transacciones).
-  const medioAProveedor = new Map(mapeos.map((m) => [m.medioPago, m.proveedor]))
+  // Cobertura: cobros por pasarela (vía Cód. Medio Pago) vs extracto (transacciones).
+  const medioAProveedor = new Map(mapeos.map((m) => [m.codMedioPago, m.proveedor]))
   const nombrePasarela = new Map(catalogo.map((p) => [p.codigo, p.nombre]))
   const transPorProveedor = new Map(transProv.map((t) => [t.proveedor, t._count._all]))
 
   const cobrosPorProveedor = new Map<string | null, number>()
   for (const m of mediosCobro) {
-    const prov = medioAProveedor.get(m.medioPago) ?? null
+    const prov = m.codMedioPago ? medioAProveedor.get(m.codMedioPago) ?? null : null
     cobrosPorProveedor.set(prov, (cobrosPorProveedor.get(prov) ?? 0) + m._count._all)
   }
 

@@ -219,15 +219,16 @@ model MapeoEstablecimientoPasarela {
 // pertenece. proveedor = null → NO CONCILIABLE (ej. EFECTIVO) → estadoOp NO_APLICA.
 // La expo de HIOPOS trae todos los medios juntos; esto separa cada cruce.
 model MapeoMedioPago {
-  id        String     @id @default(uuid())
-  tenantId  String
-  medioPago String // string exacto del export HIOPOS (ej. "Payway", "Mercadopago MANUAL", "EFECTIVO")
-  proveedor String? // codigo de Pasarela; null = NO CONCILIABLE
-  creadoEn  DateTime   @default(now())
+  id           String   @id @default(uuid())
+  tenantId     String
+  codMedioPago String // Cód. Medio Pago de HIOPOS (clave estable, aunque renombren el medio)
+  medioPago    String // nombre del medio para mostrar (ej. "Débito Otras")
+  proveedor    String? // codigo de Pasarela; null = NO CONCILIABLE (ej. efectivo)
+  creadoEn     DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@unique([tenantId, medioPago])
+  @@unique([tenantId, codMedioPago])
   @@map("mapeo_medio_pago")
 }
 
@@ -267,6 +268,7 @@ model Cobro {
   establecimientoId String?
   hioposTicketId    String
   medioPago       String
+  codMedioPago    String? // Cód. Medio Pago de HIOPOS (clave estable del mapeo)
   importe         Decimal          @db.Decimal(12, 2)
   cuotas          Int              @default(1)
   fechaHora       DateTime

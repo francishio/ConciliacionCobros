@@ -20,13 +20,16 @@ export async function cargarCobrosHiopos(
 ): Promise<void> {
   await reemplazarCobrosMes(tenantId, periodo)
 
-  // Crea los mapeos de medio que falten (no pisa los ya configurados).
-  const medios = [...new Set(cobros.map((c) => c.medioPago))]
-  for (const m of medios) {
+  // Mapeo de medios por Cód. Medio Pago. Crea los que falten con la heurística
+  // como SUGERENCIA inicial; no pisa el proveedor ya configurado (solo refresca
+  // el nombre visible).
+  const medios = new Map<string, string>() // codMedioPago → nombre
+  for (const c of cobros) if (c.codMedioPago) medios.set(c.codMedioPago, c.medioPago)
+  for (const [cod, nombre] of medios) {
     await adminDb.mapeoMedioPago.upsert({
-      where: { tenantId_medioPago: { tenantId, medioPago: m } },
-      create: { tenantId, medioPago: m, proveedor: proveedorDeMedio(m) },
-      update: {},
+      where: { tenantId_codMedioPago: { tenantId, codMedioPago: cod } },
+      create: { tenantId, codMedioPago: cod, medioPago: nombre, proveedor: proveedorDeMedio(nombre) },
+      update: { medioPago: nombre },
     })
   }
   await adminDb.matchingProfile.upsert({

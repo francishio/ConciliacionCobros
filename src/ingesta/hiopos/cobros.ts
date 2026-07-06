@@ -107,6 +107,7 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
   const idxCodTienda = buscarCol(header, ['Cód. Tienda', 'Cód. Establecimiento'])
   const idxTienda = buscarCol(header, ['Tienda', 'Establecimiento'])
   const idxHora = buscarCol(header, ['Hora'])
+  const idxCodMedio = buscarCol(header, ['Cód. Medio Pago', 'Cod. Medio Pago', 'Código Medio Pago'])
 
   return filas.slice(1).map((c) => {
     const codDoc = (c[idx.codDoc] ?? '').trim()
@@ -119,6 +120,7 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
       codTienda: idxCodTienda != null ? (c[idxCodTienda] ?? '').trim() || null : null,
       tienda: idxTienda != null ? (c[idxTienda] ?? '').trim() || null : null,
       medioPago: (c[idx.medioPago] ?? '').trim(),
+      codMedioPago: idxCodMedio != null ? (c[idxCodMedio] ?? '').trim() || null : null,
       marca: (c[idx.marca] ?? '').trim() || null,
       tipoTarjeta: tipoTarjetaDe((c[idx.medioPago] ?? '').trim()),
       importe: parseImporteAr(c[idx.importe]),

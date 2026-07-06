@@ -43,6 +43,7 @@ export interface CobroNormalizado {
   codTienda: string | null // Cód. Tienda HIOPOS (ancla del establecimiento)
   tienda: string | null // nombre de la tienda
   medioPago: string
+  codMedioPago: string | null // Cód. Medio Pago HIOPOS (clave estable del mapeo)
   marca: string | null // marca de tarjeta (VISA/MASTERCARD/…)
   tipoTarjeta: TipoTarjeta | null // CREDITO/DEBITO (para narrowing fuzzy)
   importe: string

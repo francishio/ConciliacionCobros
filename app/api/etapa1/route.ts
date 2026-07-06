@@ -15,6 +15,7 @@ type Cobro = {
   establecimientoId: string | null
   establecimiento: { nombre: string } | null
   medioPago: string
+  codMedioPago: string | null
   marca: string | null
   ultimos4: string | null
   codAutorizacion: string | null
@@ -59,6 +60,7 @@ const SEL_COBRO = {
   fechaHora: true,
   establecimientoId: true,
   medioPago: true,
+  codMedioPago: true,
   marca: true,
   ultimos4: true,
   codAutorizacion: true,
@@ -103,7 +105,7 @@ export async function GET(req: Request): Promise<Response> {
         select: { tipo: true, cobro: { select: SEL_COBRO }, transaccion: { select: SEL_TRANS } },
       }),
       adminDb.cobro.findMany({ where: { tenantId, periodo, estadoOp: { in: ['EN_REVISION', 'SIN_TRANSACCION'] } }, select: SEL_COBRO }),
-      adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { medioPago: true, proveedor: true } }),
+      adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { codMedioPago: true, proveedor: true } }),
       adminDb.mapeoEstablecimientoPasarela.findMany({ where: { tenantId }, select: { establecimientoId: true, proveedor: true, codigoExterno: true } }),
     ])
 
@@ -113,7 +115,7 @@ export async function GET(req: Request): Promise<Response> {
       select: SEL_TRANS,
     })
 
-    const provDeMedio = new Map(mapeos.map((m) => [m.medioPago, m.proveedor]))
+    const provDeMedio = new Map(mapeos.map((m) => [m.codMedioPago, m.proveedor]))
     // Terminal según la config del establecimiento: (establecimiento|pasarela) → código mapeado.
     const terminalCfg = new Map(mapeosEstab.map((m) => [`${m.establecimientoId}|${m.proveedor}`, m.codigoExterno]))
     const cfgDe = (establecimientoId: string | null, pasarela: string | null) =>
@@ -136,7 +138,7 @@ export async function GET(req: Request): Promise<Response> {
       }),
       ...cobrosSueltos.map((c) => {
         const cob = c as Cobro
-        const pasarela = provDeMedio.get(cob.medioPago) ?? null
+        const pasarela = cob.codMedioPago ? provDeMedio.get(cob.codMedioPago) ?? null : null
         return {
           tipo: (c as unknown as { estadoOp?: string }).estadoOp === 'EN_REVISION' ? 'EN_REVISION' : 'SIN_TRANSACCION',
           pasarela,
