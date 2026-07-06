@@ -277,10 +277,10 @@ export default function Etapa1Page() {
                           {it.cobro?.medioPago ?? '—'}
                         </td>
                         <td className="px-2 py-1.5" style={{ color: it.trans ? 'var(--cyan)' : 'var(--muted)' }}>
-                          {it.trans?.pasarela ?? it.pasarela ?? '—'}
+                          {it.trans?.pasarela ?? '—'}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
-                          {it.terminalConfig ?? '—'}
+                          {it.trans ? (it.terminalConfig ?? '—') : '—'}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
                           {it.trans?.terminal ?? '—'}
