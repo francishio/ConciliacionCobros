@@ -29,6 +29,7 @@ export default function CargaPage() {
   const [hiopos, setHiopos] = useState<File | null>(null)
   const [extractos, setExtractos] = useState<Record<string, File | null>>({})
   const [cargando, setCargando] = useState(false)
+  const [sincro, setSincro] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -57,11 +58,33 @@ export default function CargaPage() {
   const mesSel = estado?.meses.find((m) => m.periodo === sel)
   const cargados = (m: MesEstado) => m.cobros > 0 || Object.keys(m.porPasarela).length > 0
 
+  async function sincronizarHiopos() {
+    if (!sel) return
+    setSincro(true)
+    setError(null)
+    setAviso(null)
+    try {
+      const res = await fetch('/api/carga/hiopos', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ periodo: sel }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo sincronizar')
+      setAviso(`✓ HIOPOS sincronizado: ${json.cobrosSincronizados} cobros de ${nombreMes(sel)}.`)
+      await cargarEstado()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSincro(false)
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!sel) return
-    if (!hiopos) {
-      setError('Subí el export de HIOPOS.')
+    if (!hiopos && !Object.values(extractos).some(Boolean)) {
+      setError('Subí el HIOPOS o al menos un extracto.')
       return
     }
     setCargando(true)
@@ -70,7 +93,7 @@ export default function CargaPage() {
     try {
       const fd = new FormData()
       fd.set('periodo', sel)
-      fd.set('hiopos', hiopos)
+      if (hiopos) fd.set('hiopos', hiopos)
       for (const [codigo, f] of Object.entries(extractos)) if (f) fd.set(`extracto_${codigo}`, f)
       const res = await fetch('/api/carga', { method: 'POST', body: fd })
       const json = await res.json()
@@ -169,7 +192,31 @@ export default function CargaPage() {
             )}
           </div>
 
-          <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} />
+          {/* Traer las ventas del mes directo de HIOPOS (API) */}
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5"
+            style={{ borderColor: 'var(--border2)', background: 'var(--surface2)' }}
+          >
+            <button
+              type="button"
+              onClick={sincronizarHiopos}
+              disabled={sincro}
+              className="rounded-md px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+              style={{ background: 'var(--surface3)', color: 'var(--text)' }}
+            >
+              {sincro ? 'Sincronizando…' : '↻ Sincronizar HIOPOS'}
+            </button>
+            <span className="text-[10.5px]" style={{ color: 'var(--muted)' }}>
+              Trae las ventas de {nombreMes(sel)} directo de HIOPOS por API (Exportation ID de Ventas). Reemplaza solo
+              los cobros del mes.
+            </span>
+          </div>
+
+          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+            …o subir archivos
+          </div>
+
+          <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} opcional />
           {estado && estado.pasarelas.length > 0 && (
             <div className="grid gap-4 sm:grid-cols-2">
               {estado.pasarelas.map((p) => (

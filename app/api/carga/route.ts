@@ -8,9 +8,9 @@ import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
 import { parseCobrosHiopos } from '@/src/ingesta/hiopos/cobros'
 import { parseTransaccionesPayway } from '@/src/ingesta/payway'
-import { ingestarCobrosBulk, ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
-import { conciliarOperativa } from '@/src/matching/operativa'
-import { reemplazarBloqueMes, limpiarSinPeriodo } from '@/src/carga/bloque'
+import { ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
+import { reemplazarTransMes, reconciliarMes, limpiarSinPeriodo } from '@/src/carga/bloque'
+import { cargarCobrosHiopos } from '@/src/carga/cobros'
 import { resumenMes } from '@/src/carga/resumen'
 import type { TransaccionNormalizada } from '@/src/ingesta/tipos'
 
@@ -22,12 +22,6 @@ export const maxDuration = 120
 // nueva necesita su parser acá para poder ingerir su extracto.
 const PARSERS: Record<string, (buf: Buffer) => TransaccionNormalizada[]> = {
   PAYWAY: (buf) => parseTransaccionesPayway(buf),
-}
-
-function proveedorDeMedio(m: string): 'PAYWAY' | 'MERCADOPAGO' | null {
-  if (/cr[eé]dito otras|d[eé]bito otras/i.test(m)) return 'PAYWAY'
-  if (/mercado\s*pago/i.test(m)) return 'MERCADOPAGO'
-  return null
 }
 
 // Pasarelas del cliente en modo archivo (distinct proveedor de los mapeos MANUAL).
@@ -95,13 +89,10 @@ export async function POST(req: Request): Promise<Response> {
     const { tenantId } = ctx
 
     const hioposFile = form.get('hiopos')
-    if (!(hioposFile instanceof File))
-      return NextResponse.json({ error: 'Subí el export de HIOPOS (.csv).' }, { status: 400 })
+    const hayHiopos = hioposFile instanceof File
 
-    const cobros = parseCobrosHiopos(Buffer.from(await hioposFile.arrayBuffer()).toString('utf8'))
-
-    // Un extracto por pasarela: form key = extracto_<codigo>.
-    const transacciones: TransaccionNormalizada[] = []
+    // Un extracto por pasarela (form key = extracto_<codigo>), agrupado por pasarela.
+    const extractos = new Map<string, TransaccionNormalizada[]>()
     const sinParser: string[] = []
     for (const [key, val] of form.entries()) {
       if (!key.startsWith('extracto_') || !(val instanceof File)) continue
@@ -111,39 +102,26 @@ export async function POST(req: Request): Promise<Response> {
         sinParser.push(codigo)
         continue
       }
-      transacciones.push(...parser(Buffer.from(await val.arrayBuffer())))
+      const txs = parser(Buffer.from(await val.arrayBuffer()))
+      extractos.set(codigo, [...(extractos.get(codigo) ?? []), ...txs])
     }
 
-    // Limpia legacy sin período + reemplaza el bloque del mes.
+    if (!hayHiopos && extractos.size === 0)
+      return NextResponse.json({ error: 'Subí el HIOPOS y/o al menos un extracto.' }, { status: 400 })
+
     await limpiarSinPeriodo(tenantId)
-    await reemplazarBloqueMes(tenantId, periodo)
 
-    // Mapeo de medios: crea los que falten (no pisa los ya configurados).
-    const medios = [...new Set(cobros.map((c) => c.medioPago))]
-    for (const m of medios) {
-      await adminDb.mapeoMedioPago.upsert({
-        where: { tenantId_medioPago: { tenantId, medioPago: m } },
-        create: { tenantId, medioPago: m, proveedor: proveedorDeMedio(m) },
-        update: {},
-      })
+    // Carga POR FUENTE: cada una reemplaza solo lo suyo del mes.
+    if (hayHiopos) {
+      const cobros = parseCobrosHiopos(Buffer.from(await hioposFile.arrayBuffer()).toString('utf8'))
+      await cargarCobrosHiopos(tenantId, periodo, cobros)
     }
-    await adminDb.matchingProfile.upsert({
-      where: { tenantId },
-      create: { tenantId, ventanaMin: 600, tolMonto: '0' },
-      update: {},
-    })
+    for (const [codigo, txs] of extractos) {
+      await reemplazarTransMes(tenantId, periodo, codigo)
+      if (txs.length) await ingestarTransaccionesBulk(tenantId, txs, { periodo })
+    }
 
-    await ingestarCobrosBulk(tenantId, cobros, { periodo })
-    if (transacciones.length) await ingestarTransaccionesBulk(tenantId, transacciones, { periodo })
-
-    // Concilia cada pasarela conciliable del cliente.
-    const provs = await adminDb.mapeoMedioPago.findMany({
-      where: { tenantId, proveedor: { not: null } },
-      distinct: ['proveedor'],
-      select: { proveedor: true },
-    })
-    for (const p of provs) if (p.proveedor) await conciliarOperativa(tenantId, p.proveedor)
-
+    await reconciliarMes(tenantId, periodo)
     const resumen = await resumenMes(tenantId, periodo)
     return NextResponse.json({ ...resumen, sinParser })
   } catch (e) {
