@@ -8,6 +8,7 @@ interface Mapeo {
   proveedor: string
   codigoExterno: string
   modo: 'MANUAL' | 'API'
+  tieneCred: boolean
   descripcion: string | null
 }
 interface Establecimiento {
@@ -98,11 +99,7 @@ export default function EstablecimientosPage() {
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
-          {esCliente ? (
-            <div className="px-1 py-1.5 text-[12px] font-semibold" style={{ color: 'var(--text)' }}>
-              {tenant}
-            </div>
-          ) : (
+          {!esCliente && (
             <input
               value={tenant}
               onChange={(e) => setTenant(e.target.value)}
@@ -211,6 +208,7 @@ function FilaTienda({
   const [proveedor, setProveedor] = useState(proveedores[0]?.codigo ?? 'PAYWAY')
   const [codigo, setCodigo] = useState('')
   const [modo, setModo] = useState<'MANUAL' | 'API'>('MANUAL')
+  const [apiCred, setApiCred] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -225,11 +223,12 @@ function FilaTienda({
       const res = await fetch('/api/establecimientos', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, modo, descripcion }),
+        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, modo, apiCred, descripcion }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo agregar')
       setCodigo('')
+      setApiCred('')
       setDescripcion('')
       onChange()
     } catch (e) {
@@ -326,6 +325,7 @@ function FilaTienda({
                     style={{ background: 'var(--surface3)', color: m.modo === 'API' ? 'var(--green)' : 'var(--muted2)' }}
                   >
                     {m.modo === 'API' ? 'API' : 'archivo'}
+                    {m.modo === 'API' && m.tieneCred ? ' 🔒' : ''}
                   </span>
                   {m.descripcion && <span style={{ color: 'var(--muted)' }}>· {m.descripcion}</span>}
                   <button onClick={() => borrar(m.id)} className="ml-1" style={{ color: 'var(--muted)' }} title="Quitar">
@@ -375,6 +375,20 @@ function FilaTienda({
                 {guardando ? 'Agregando…' : '+ Agregar'}
               </button>
             </div>
+            {modo === 'API' && (
+              <div className="mt-2">
+                <input
+                  type="password"
+                  value={apiCred}
+                  onChange={(e) => setApiCred(e.target.value)}
+                  placeholder="Credencial de API (token / clave de acceso a la pasarela)"
+                  className="pc-input w-full px-2 py-1.5 font-mono text-[11px]"
+                />
+                <div className="mt-1 text-[9px]" style={{ color: 'var(--muted)' }}>
+                  🔒 Se guarda cifrada; nunca se muestra de vuelta.
+                </div>
+              </div>
+            )}
           </td>
         </tr>
       )}

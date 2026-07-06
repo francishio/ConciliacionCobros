@@ -103,11 +103,7 @@ export default function ManualPage() {
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
-          {esCliente ? (
-            <div className="px-1 py-1.5 text-[12px] font-semibold" style={{ color: 'var(--text)' }}>
-              {tenant}
-            </div>
-          ) : (
+          {!esCliente && (
             <input
               value={tenant}
               onChange={(e) => setTenant(e.target.value)}

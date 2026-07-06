@@ -202,6 +202,7 @@ model MapeoEstablecimientoPasarela {
   proveedor         String      // codigo de Pasarela (ej. 'PAYWAY')
   codigoExterno     String // nro de establecimiento/terminal de la pasarela
   modo              ModoIngesta @default(MANUAL) // archivo manual o API para esta pasarela en esta tienda
+  apiCredEnc        String? // credencial de API cifrada (AES-256-GCM); solo si modo=API
   descripcion       String? // etiqueta libre opcional (ej. "Caja 1")
   activo            Boolean     @default(true)
   creadoEn          DateTime  @default(now())

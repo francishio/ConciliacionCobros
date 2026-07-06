@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
+import { cifrar } from '@/src/config/crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,6 +53,7 @@ export async function GET(req: Request): Promise<Response> {
           proveedor: m.proveedor,
           codigoExterno: m.codigoExterno,
           modo: m.modo,
+          tieneCred: !!m.apiCredEnc,
           descripcion: m.descripcion,
         })),
       })),
@@ -69,11 +71,13 @@ export async function POST(req: Request): Promise<Response> {
       proveedor?: string
       codigoExterno?: string
       modo?: string
+      apiCred?: string
       descripcion?: string
     }
     const codigoExterno = (b.codigoExterno ?? '').trim()
     const proveedor = (b.proveedor ?? '').trim()
     const modo = b.modo === 'API' ? 'API' : 'MANUAL'
+    const apiCred = (b.apiCred ?? '').trim()
     if (!b.establecimientoId || !proveedor || !codigoExterno)
       return NextResponse.json({ error: 'Faltan establecimiento, proveedor y/o código.' }, { status: 400 })
 
@@ -103,6 +107,7 @@ export async function POST(req: Request): Promise<Response> {
         proveedor,
         codigoExterno,
         modo: modo as 'MANUAL' | 'API',
+        apiCredEnc: modo === 'API' && apiCred ? cifrar(apiCred) : null,
         descripcion: (b.descripcion ?? '').trim() || null,
       },
       select: { id: true },
