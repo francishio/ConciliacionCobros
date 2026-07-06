@@ -21,7 +21,7 @@ const nav: Grupo[] = [
     rolVisible: 'CLIENTE',
     items: [
       { icon: '🏪', label: 'Establecimientos', href: '/establecimientos' },
-      { icon: '↑', label: 'Cargar archivos' },
+      { icon: '↑', label: 'Cargar archivos', href: '/carga' },
       { icon: '◈', label: 'Dashboard', href: '/' },
     ],
   },

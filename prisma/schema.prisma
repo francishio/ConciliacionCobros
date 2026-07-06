@@ -275,6 +275,7 @@ model Cobro {
   marca           String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   tipoTarjeta     TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
   origenRef       String // clave natural del origen (idempotencia de ingesta)
+  periodo         String? // bloque mensual YYYY-MM (se define al cargar)
   raw             Json? // payload crudo del origen (auditoría)
   estadoOp        EstadoOperativa  @default(PENDIENTE) // proyección → write-back HIOPOS
   estadoFin       EstadoFinanciera @default(PENDIENTE) // proyección → write-back HIOPOS
@@ -290,6 +291,7 @@ model Cobro {
   @@index([tenantId, codAutorizacion])
   @@index([tenantId, ultimos4, importe])
   @@index([establecimientoId])
+  @@index([tenantId, periodo])
   @@map("cobro")
 }
 
@@ -308,6 +310,7 @@ model Transaccion {
   tipoTarjeta       TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
   estado            EstadoTransaccion @default(APROBADA)
   fechaHora         DateTime
+  periodo           String? // bloque mensual YYYY-MM (se define al cargar)
   raw               Json // payload crudo del proveedor (auditoría)
   creadoEn          DateTime          @default(now())
 
@@ -321,6 +324,7 @@ model Transaccion {
   @@index([tenantId, fechaHora])
   @@index([tenantId, codAutorizacion]) // match determinístico
   @@index([establecimientoId])
+  @@index([tenantId, periodo])
   @@map("transaccion")
 }
 

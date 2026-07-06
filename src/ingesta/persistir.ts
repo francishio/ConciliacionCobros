@@ -126,9 +126,10 @@ export async function ingestarTransacciones(
 export async function ingestarTransaccionesBulk(
   tenantId: string,
   registros: TransaccionNormalizada[],
-  opciones?: { tamanoLote?: number },
+  opciones?: { tamanoLote?: number; periodo?: string | null },
 ): Promise<ResultadoIngesta> {
   const tamano = opciones?.tamanoLote ?? 1000
+  const periodo = opciones?.periodo ?? null
   let persistidas = 0
   for (let i = 0; i < registros.length; i += tamano) {
     const lote = registros.slice(i, i + tamano)
@@ -147,6 +148,7 @@ export async function ingestarTransaccionesBulk(
           tipoTarjeta: r.tipoTarjeta ?? null,
           estado: r.estado,
           fechaHora: r.fechaHora,
+          periodo,
           raw: r.raw as Prisma.InputJsonValue,
         })),
         skipDuplicates: true,
@@ -161,9 +163,10 @@ export async function ingestarTransaccionesBulk(
 export async function ingestarCobrosBulk(
   tenantId: string,
   cobros: CobroNormalizado[],
-  opciones?: { tamanoLote?: number },
+  opciones?: { tamanoLote?: number; periodo?: string | null },
 ): Promise<ResultadoIngesta> {
   const tamano = opciones?.tamanoLote ?? 1000
+  const periodo = opciones?.periodo ?? null
   const estabs = await resolverEstablecimientos(tenantId, cobros)
   let persistidas = 0
   for (let i = 0; i < cobros.length; i += tamano) {
@@ -183,6 +186,7 @@ export async function ingestarCobrosBulk(
           fechaHora: c.fechaHora,
           codAutorizacion: c.codAutorizacion,
           ultimos4: c.ultimos4,
+          periodo,
           raw: c.raw as Prisma.InputJsonValue,
         })),
         skipDuplicates: true,
