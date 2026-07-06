@@ -9,7 +9,7 @@ import { parseCobrosHiopos } from '@/src/ingesta/hiopos/cobros'
 import { parseTransaccionesPayway } from '@/src/ingesta/payway'
 import { ingestarCobrosBulk, ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
 import { conciliarOperativa } from '@/src/matching/operativa'
-import { reemplazarBloqueMes } from '@/src/carga/bloque'
+import { reemplazarBloqueMes, limpiarSinPeriodo } from '@/src/carga/bloque'
 import { resumenMes } from '@/src/carga/resumen'
 
 export const runtime = 'nodejs'
@@ -42,7 +42,8 @@ export async function POST(req: Request): Promise<Response> {
     const transacciones =
       paywayFile instanceof File ? parseTransaccionesPayway(Buffer.from(await paywayFile.arrayBuffer())) : []
 
-    // Reemplaza el bloque del mes (idempotente).
+    // Limpia legacy sin período (flujo viejo) + reemplaza el bloque del mes.
+    await limpiarSinPeriodo(tenantId)
     await reemplazarBloqueMes(tenantId, periodo)
 
     // Mapeo de medios: crea los que falten (no pisa los ya configurados).
