@@ -41,6 +41,11 @@ enum Rol {
   CLIENTE // usuario de un tenant: ve solo sus tiendas
 }
 
+enum ModoIngesta {
+  MANUAL // el cliente sube el extracto (archivo)
+  API // se obtiene por API con las credenciales del cliente
+}
+
 // Usuarios del sistema. Control-plane (se accede vía adminDb, no RLS): el login
 // busca por email a través de todos los tenants. SUPERADMIN tiene tenantId null.
 model Usuario {
@@ -73,6 +78,26 @@ model Pasarela {
   creadoEn    DateTime @default(now())
 
   @@map("pasarela")
+}
+
+// Config de una pasarela PARA un cliente: si la usa, con qué alias la ve en
+// informes/pantallas, el modo (archivo manual o API) y —si es API— las
+// credenciales (cifradas, a nivel cliente: una cuenta cubre todas sus tiendas).
+model TenantPasarela {
+  id             String      @id @default(uuid())
+  tenantId       String
+  pasarelaCodigo String // referencia al `codigo` de Pasarela (catálogo global)
+  alias          String // nombre visible en informes/pantallas de este cliente
+  modo           ModoIngesta @default(MANUAL)
+  apiCredEnc     String? // credencial de API cifrada (AES-256-GCM); null si manual
+  activo         Boolean     @default(true)
+  creadoEn       DateTime    @default(now())
+  actualizadoEn  DateTime    @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, pasarelaCodigo])
+  @@map("tenant_pasarela")
 }
 
 enum EstadoTransaccion {
@@ -151,6 +176,7 @@ model Tenant {
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
   usuarios          Usuario[]
+  pasarelasTenant   TenantPasarela[]
 
   @@map("tenant")
 }

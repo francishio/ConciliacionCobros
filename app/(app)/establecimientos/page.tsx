@@ -146,6 +146,16 @@ export default function EstablecimientosPage() {
         </div>
       )}
 
+      {data && data.proveedores.length === 0 && (
+        <div
+          className="mb-4 rounded-lg border px-4 py-2.5 text-[12px]"
+          style={{ borderColor: '#7c5e10', background: '#241d07', color: '#fcd34d' }}
+        >
+          Todavía no habilitaste ninguna pasarela. Andá a <b>Pasarelas</b> y activá las que usás para poder mapear sus
+          códigos acá.
+        </div>
+      )}
+
       {data && data.establecimientos.length === 0 && (
         <div className="pc-panel px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--muted)' }}>
           Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba).

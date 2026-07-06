@@ -27,16 +27,17 @@ export async function GET(req: Request): Promise<Response> {
           _count: { select: { cobros: true, transacciones: true } },
         },
       }),
-      adminDb.pasarela.findMany({
-        where: { activo: true },
-        orderBy: { orden: 'asc' },
-        select: { codigo: true, nombre: true },
+      // Pasarelas que el cliente habilitó (con su alias), no todo el catálogo.
+      adminDb.tenantPasarela.findMany({
+        where: { tenantId, activo: true },
+        orderBy: { alias: 'asc' },
+        select: { pasarelaCodigo: true, alias: true },
       }),
     ])
 
     return NextResponse.json({
       tenant: nombre,
-      proveedores: pasarelas,
+      proveedores: pasarelas.map((p) => ({ codigo: p.pasarelaCodigo, nombre: p.alias })),
       establecimientos: establecimientos.map((e) => ({
         id: e.id,
         nombre: e.nombre,
@@ -73,13 +74,21 @@ export async function POST(req: Request): Promise<Response> {
     const proveedor = (b.proveedor ?? '').trim()
     if (!b.establecimientoId || !proveedor || !codigoExterno)
       return NextResponse.json({ error: 'Faltan establecimiento, proveedor y/o código.' }, { status: 400 })
-    const pasarela = await adminDb.pasarela.findUnique({ where: { codigo: proveedor }, select: { activo: true } })
-    if (!pasarela || !pasarela.activo)
-      return NextResponse.json({ error: `Pasarela inválida o inactiva: ${proveedor}.` }, { status: 400 })
 
     const ctx = await resolverTenant(b.tenant)
     if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
     const { tenantId } = ctx
+
+    // La pasarela tiene que estar habilitada por este cliente (ver "Pasarelas").
+    const habilitada = await adminDb.tenantPasarela.findUnique({
+      where: { tenantId_pasarelaCodigo: { tenantId, pasarelaCodigo: proveedor } },
+      select: { activo: true },
+    })
+    if (!habilitada || !habilitada.activo)
+      return NextResponse.json(
+        { error: `La pasarela ${proveedor} no está habilitada para este cliente (configurala en "Pasarelas").` },
+        { status: 400 },
+      )
 
     // El código debe pertenecer a una sola tienda (unique tenant+proveedor+código).
     const ya = await adminDb.mapeoEstablecimientoPasarela.findFirst({
