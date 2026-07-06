@@ -3,17 +3,29 @@
 import { useEffect, useState } from 'react'
 import { ResumenMes, type Resumen } from '@/components/ResumenMes'
 
+interface PasarelaArchivo {
+  codigo: string
+  nombre: string
+  tieneParser: boolean
+}
+
 export default function CargaPage() {
   const [periodo, setPeriodo] = useState(() => new Date().toISOString().slice(0, 7))
+  const [pasarelas, setPasarelas] = useState<PasarelaArchivo[]>([])
   const [hiopos, setHiopos] = useState<File | null>(null)
-  const [payway, setPayway] = useState<File | null>(null)
+  const [extractos, setExtractos] = useState<Record<string, File | null>>({})
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
   const [resumen, setResumen] = useState<Resumen | null>(null)
   const [recienCargado, setRecienCargado] = useState(false)
 
-  // Al entrar, arranca en el último mes con datos (si hay alguno).
+  // Pasarelas del cliente en modo archivo + último mes con datos.
   useEffect(() => {
+    fetch('/api/carga')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setPasarelas(j?.pasarelas ?? []))
+      .catch(() => {})
     fetch('/api/dashboard')
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
@@ -22,7 +34,7 @@ export default function CargaPage() {
       .catch(() => {})
   }, [])
 
-  // Al cambiar de mes, trae lo que ya está cargado para ese mes (si hay).
+  // Al cambiar de mes, trae lo que ya está cargado.
   useEffect(() => {
     let vivo = true
     setRecienCargado(false)
@@ -37,6 +49,10 @@ export default function CargaPage() {
     }
   }, [periodo])
 
+  function setExtracto(codigo: string, f: File | null) {
+    setExtractos((prev) => ({ ...prev, [codigo]: f }))
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!hiopos) {
@@ -45,18 +61,21 @@ export default function CargaPage() {
     }
     setCargando(true)
     setError(null)
+    setAviso(null)
     try {
       const fd = new FormData()
       fd.set('periodo', periodo)
       fd.set('hiopos', hiopos)
-      if (payway) fd.set('payway', payway)
+      for (const [codigo, f] of Object.entries(extractos)) if (f) fd.set(`extracto_${codigo}`, f)
       const res = await fetch('/api/carga', { method: 'POST', body: fd })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error en la carga')
       setResumen(json as Resumen)
       setRecienCargado(true)
       setHiopos(null)
-      setPayway(null)
+      setExtractos({})
+      if (json.sinParser?.length)
+        setAviso(`No hay parser todavía para: ${json.sinParser.join(', ')}. Su extracto no se ingirió.`)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -71,8 +90,8 @@ export default function CargaPage() {
       <div className="mb-5">
         <h1 className="text-lg font-bold tracking-tight">Cargar archivos</h1>
         <p className="mt-1 text-[12.5px]" style={{ color: 'var(--muted2)' }}>
-          Elegí el mes y subí el export de HIOPOS (todas las pasarelas) y los extractos. Volver a cargar el mismo mes
-          reemplaza el bloque.
+          Elegí el mes y subí el export de HIOPOS y el extracto de cada pasarela. Volver a cargar el mismo mes reemplaza
+          el bloque.
         </p>
       </div>
 
@@ -101,10 +120,29 @@ export default function CargaPage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} />
-          <FileField label="Extracto Payway (.xlsx)" accept=".xlsx" onFile={setPayway} file={payway} opcional />
-        </div>
+        <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} />
+
+        {pasarelas.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {pasarelas.map((p) => (
+              <FileField
+                key={p.codigo}
+                label={`Extracto ${p.nombre}`}
+                accept=".xlsx,.csv"
+                onFile={(f) => setExtracto(p.codigo, f)}
+                file={extractos[p.codigo] ?? null}
+                nota={p.tieneParser ? undefined : 'sin parser aún — no se ingiere'}
+                opcional
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-[11px]" style={{ color: 'var(--muted)' }}>
+            No tenés pasarelas en modo archivo. Agregá pasarelas (modo Archivo) en{' '}
+            <span style={{ color: 'var(--cyan)' }}>Establecimientos</span> para poder subir sus extractos.
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={cargando}
@@ -121,6 +159,14 @@ export default function CargaPage() {
           style={{ borderColor: '#7f1d1d', background: '#2a0a0a', color: '#fca5a5' }}
         >
           {error}
+        </div>
+      )}
+      {aviso && (
+        <div
+          className="mt-5 rounded-lg border px-4 py-3 text-[12px]"
+          style={{ borderColor: '#7c5e10', background: '#241d07', color: '#fcd34d' }}
+        >
+          {aviso}
         </div>
       )}
 
@@ -142,17 +188,20 @@ function FileField({
   onFile,
   file,
   opcional,
+  nota,
 }: {
   label: string
   accept: string
   onFile: (f: File | null) => void
   file: File | null
   opcional?: boolean
+  nota?: string
 }) {
   return (
     <div>
       <label className="mb-1 block text-[11px] font-medium" style={{ color: 'var(--muted2)' }}>
         {label} {opcional && <span style={{ color: 'var(--muted)' }}>· opcional</span>}
+        {nota && <span style={{ color: 'var(--amber)' }}> · {nota}</span>}
       </label>
       <input
         type="file"
