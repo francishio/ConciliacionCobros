@@ -66,6 +66,7 @@ export default function Etapa1Page() {
   const [selCobro, setSelCobro] = useState<string | null>(null)
   const [selTrans, setSelTrans] = useState<string | null>(null)
   const [expandido, setExpandido] = useState<string | null>(null)
+  const [reconciliando, setReconciliando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -88,6 +89,28 @@ export default function Etapa1Page() {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function reconciliar() {
+    if (!periodo) return
+    setReconciliando(true)
+    setError(null)
+    setAviso(null)
+    try {
+      const res = await fetch('/api/etapa1', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ periodo }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo re-conciliar')
+      setAviso('Mes re-conciliado.')
+      await cargar(periodo)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setReconciliando(false)
+    }
+  }
 
   async function conciliar() {
     if (!selCobro || !selTrans) return
@@ -132,13 +155,24 @@ export default function Etapa1Page() {
           </p>
         </div>
         {data && data.periodos.length > 0 && (
-          <select value={periodo} onChange={(e) => cargar(e.target.value)} className="pc-input ml-auto px-3 py-1.5 text-[12px]">
-            {data.periodos.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={reconciliar}
+              disabled={reconciliando}
+              className="rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+              style={{ background: 'var(--surface3)', color: 'var(--text)' }}
+              title="Volver a cruzar el mes (útil tras cambiar mapeos de terminal o pasarela)"
+            >
+              {reconciliando ? 'Conciliando…' : '↻ Re-conciliar'}
+            </button>
+            <select value={periodo} onChange={(e) => cargar(e.target.value)} className="pc-input px-3 py-1.5 text-[12px]">
+              {data.periodos.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 

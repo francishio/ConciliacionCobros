@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
 import { resumenMes } from '@/src/carga/resumen'
+import { reconciliarMes } from '@/src/carga/bloque'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -79,6 +80,22 @@ const SEL_TRANS = {
   importeBruto: true,
   raw: true,
 } as const
+
+// Re-concilia el mes indicado (forzar recálculo tras cambios de config que no
+// disparan reconciliación por sí solos, ej. mapeo de terminal / pasarela).
+export async function POST(req: Request): Promise<Response> {
+  try {
+    const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
+    if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
+      return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })
+    const ctx = await resolverTenant(tenant)
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
+    await reconciliarMes(ctx.tenantId, periodo)
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
+}
 
 export async function GET(req: Request): Promise<Response> {
   try {
