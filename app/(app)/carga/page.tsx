@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ResumenMes, type Resumen } from '@/components/ResumenMes'
 
 export default function CargaPage() {
@@ -10,6 +10,32 @@ export default function CargaPage() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resumen, setResumen] = useState<Resumen | null>(null)
+  const [recienCargado, setRecienCargado] = useState(false)
+
+  // Al entrar, arranca en el último mes con datos (si hay alguno).
+  useEffect(() => {
+    fetch('/api/dashboard')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.periodos?.length) setPeriodo(j.periodos[0])
+      })
+      .catch(() => {})
+  }, [])
+
+  // Al cambiar de mes, trae lo que ya está cargado para ese mes (si hay).
+  useEffect(() => {
+    let vivo = true
+    setRecienCargado(false)
+    fetch(`/api/dashboard?periodo=${encodeURIComponent(periodo)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (vivo) setResumen(j?.resumen ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [periodo])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -19,7 +45,6 @@ export default function CargaPage() {
     }
     setCargando(true)
     setError(null)
-    setResumen(null)
     try {
       const fd = new FormData()
       fd.set('periodo', periodo)
@@ -29,12 +54,17 @@ export default function CargaPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error en la carga')
       setResumen(json as Resumen)
+      setRecienCargado(true)
+      setHiopos(null)
+      setPayway(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setCargando(false)
     }
   }
+
+  const yaHayDatos = !!resumen && resumen.cobros > 0
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -60,6 +90,17 @@ export default function CargaPage() {
             />
           </div>
         </div>
+
+        {yaHayDatos && !recienCargado && (
+          <div
+            className="rounded-lg border px-3 py-2 text-[11.5px]"
+            style={{ borderColor: 'var(--border2)', background: 'var(--surface2)', color: 'var(--muted2)' }}
+          >
+            Este mes ya tiene datos cargados ({resumen!.cobros} cobros · {resumen!.transacciones} transacciones). Volver
+            a cargar <b style={{ color: 'var(--text)' }}>reemplaza</b> el bloque.
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} />
           <FileField label="Extracto Payway (.xlsx)" accept=".xlsx" onFile={setPayway} file={payway} opcional />
@@ -70,7 +111,7 @@ export default function CargaPage() {
           className="rounded-lg px-4 py-2 text-[12px] font-semibold disabled:opacity-50"
           style={{ background: 'var(--cyan)', color: '#04121a' }}
         >
-          {cargando ? 'Procesando…' : 'Cargar y conciliar'}
+          {cargando ? 'Procesando…' : yaHayDatos ? 'Reemplazar y conciliar' : 'Cargar y conciliar'}
         </button>
       </form>
 
@@ -85,6 +126,9 @@ export default function CargaPage() {
 
       {resumen && (
         <div className="mt-6">
+          <div className="mb-2 text-[11px] font-semibold" style={{ color: recienCargado ? 'var(--green)' : 'var(--muted)' }}>
+            {recienCargado ? '✓ Cargado y conciliado' : 'Datos actuales de este mes'}
+          </div>
           <ResumenMes resumen={resumen} />
         </div>
       )}
