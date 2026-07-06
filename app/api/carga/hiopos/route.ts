@@ -41,7 +41,11 @@ export async function POST(req: Request): Promise<Response> {
 
     const { desde, hasta } = rangoMes(periodo)
     const client = new HioposBridgeClient({ email: cfg.apiUser, password: descifrar(cfg.apiPasswordEnc) })
-    const docs = await client.exportar({ exportationId: cfg.expIdVentas, startDate: desde, endDate: hasta })
+    // El Bridge es intermitente (a veces devuelve vacío): más reintentos.
+    const docs = await client.exportar(
+      { exportationId: cfg.expIdVentas, startDate: desde, endDate: hasta },
+      { reintentosVacios: 6, demoraMs: 3000 },
+    )
     if (docs.length === 0)
       return NextResponse.json(
         { error: 'El Bridge no devolvió datos (suele ser intermitente). Probá de nuevo en unos segundos.' },
