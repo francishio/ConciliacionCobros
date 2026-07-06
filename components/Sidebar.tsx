@@ -6,11 +6,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-type Grupo = { section: string; soloAdmin?: boolean; items: { icon: string; label: string; href?: string }[] }
+// `rolVisible` limita la sección a un rol. El SUPERADMIN solo ve Configuración
+// (gestiona clientes/credenciales y el catálogo de pasarelas); el CLIENTE ve lo
+// operativo (Principal / Conciliación / Análisis).
+type Grupo = {
+  section: string
+  rolVisible?: 'SUPERADMIN' | 'CLIENTE'
+  items: { icon: string; label: string; href?: string }[]
+}
 
 const nav: Grupo[] = [
   {
     section: 'Principal',
+    rolVisible: 'CLIENTE',
     items: [
       { icon: '🏪', label: 'Establecimientos', href: '/establecimientos' },
       { icon: '↑', label: 'Cargar archivos' },
@@ -19,6 +27,7 @@ const nav: Grupo[] = [
   },
   {
     section: 'Conciliación',
+    rolVisible: 'CLIENTE',
     items: [
       { icon: '⇄', label: 'Etapa 1 — Operativa' },
       { icon: '🏦', label: 'Etapa 2 — Financiera' },
@@ -27,13 +36,14 @@ const nav: Grupo[] = [
   },
   {
     section: 'Análisis',
+    rolVisible: 'CLIENTE',
     items: [{ icon: '⊡', label: 'Reportes' }],
   },
   {
     section: 'Configuración',
-    soloAdmin: true,
+    rolVisible: 'SUPERADMIN',
     items: [
-      { icon: '🔑', label: 'Credenciales HIOPOS', href: '/config' },
+      { icon: '🔑', label: 'Clientes y credenciales HIOPOS', href: '/config' },
       { icon: '🔀', label: 'Pasarelas', href: '/pasarelas' },
     ],
   },
@@ -41,7 +51,7 @@ const nav: Grupo[] = [
 
 export function Sidebar({ rol }: { rol: 'SUPERADMIN' | 'CLIENTE' }) {
   const pathname = usePathname()
-  const grupos = nav.filter((g) => !g.soloAdmin || rol === 'SUPERADMIN')
+  const grupos = nav.filter((g) => !g.rolVisible || g.rolVisible === rol)
   return (
     <aside
       className="flex w-56 flex-shrink-0 flex-col border-r"
