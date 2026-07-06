@@ -87,6 +87,7 @@ export async function GET(req: Request): Promise<Response> {
       adminDb.match.findMany({
         where: { tenantId, cobro: { periodo } },
         select: {
+          tipo: true,
           cobro: { select: SEL_COBRO },
           transaccion: {
             select: { id: true, proveedor: true, fechaHora: true, ultimos4: true, codAutorizacion: true, importeBruto: true, raw: true },
@@ -110,7 +111,7 @@ export async function GET(req: Request): Promise<Response> {
         const cobro = mapCobro(m.cobro as Cobro)
         const trans = mapTrans(m.transaccion as Trans)
         const dif = Math.abs(Number(cobro.monto) - Number(trans.monto)) >= 0.005
-        return { tipo: dif ? 'DIFERENCIA' : 'CONCILIADO', pasarela: trans.pasarela, cobro, trans }
+        return { tipo: dif ? 'DIFERENCIA' : 'CONCILIADO', manual: m.tipo === 'MANUAL', pasarela: trans.pasarela, cobro, trans }
       }),
       ...cobrosSueltos.map((c) => ({
         tipo: (c as unknown as { estadoOp?: string }).estadoOp === 'EN_REVISION' ? 'EN_REVISION' : 'SIN_TRANSACCION',

@@ -70,4 +70,19 @@ body {
     outline: none;
     border-color: var(--cyan);
   }
+  /* Select de filtro embebido en el encabezado de una columna */
+  .filtro-col {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--muted);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .filtro-col:focus,
+  .filtro-col:hover {
+    color: var(--cyan);
+  }
 }

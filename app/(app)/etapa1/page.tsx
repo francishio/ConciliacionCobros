@@ -24,6 +24,7 @@ interface Trans {
 }
 interface Item {
   tipo: 'CONCILIADO' | 'DIFERENCIA' | 'EN_REVISION' | 'SIN_TRANSACCION' | 'PASARELA_SIN_MATCH'
+  manual?: boolean
   pasarela: string | null
   cobro: Cobro | null
   trans: Trans | null
@@ -167,26 +168,18 @@ export default function Etapa1Page() {
             </div>
           )}
 
-          {/* Filtros */}
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
-            <span style={{ color: 'var(--muted)' }}>Filtrar:</span>
-            <select value={fPasarela} onChange={(e) => setFPasarela(e.target.value)} className="pc-input px-2 py-1 text-[11px]">
-              <option value="">Todas las pasarelas</option>
-              {pasarelas.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="pc-input px-2 py-1 text-[11px]">
-              <option value="">Todos los estados</option>
-              <option value="CONCILIADO">Conciliados</option>
-              <option value="NO_CONCILIADOS">No conciliados</option>
-              <option value="DIFERENCIA">Diferencia de monto</option>
-              <option value="EN_REVISION">En revisión</option>
-              <option value="SIN_TRANSACCION">HIOPOS sin match</option>
-              <option value="PASARELA_SIN_MATCH">Pasarela sin match</option>
-            </select>
+          <div className="mb-2 flex items-center text-[11px]">
+            {(fEstado || fPasarela) && (
+              <button
+                onClick={() => {
+                  setFEstado('')
+                  setFPasarela('')
+                }}
+                style={{ color: 'var(--cyan)' }}
+              >
+                limpiar filtros
+              </button>
+            )}
             <span className="ml-auto font-mono" style={{ color: 'var(--muted)' }}>
               {items.length} ítems
             </span>
@@ -197,11 +190,31 @@ export default function Etapa1Page() {
             <table className="w-full text-[11.5px]">
               <thead>
                 <tr className="text-left text-[9px] uppercase tracking-wide" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                  <th className="px-2 py-2 font-semibold">Estado</th>
+                  <th className="px-2 py-1.5 font-semibold">
+                    <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="filtro-col" title="Filtrar por estado">
+                      <option value="">Estado ▾</option>
+                      <option value="CONCILIADO">Conciliados</option>
+                      <option value="NO_CONCILIADOS">No conciliados</option>
+                      <option value="DIFERENCIA">Diferencia de monto</option>
+                      <option value="EN_REVISION">En revisión</option>
+                      <option value="SIN_TRANSACCION">HIOPOS sin match</option>
+                      <option value="PASARELA_SIN_MATCH">Pasarela sin match</option>
+                    </select>
+                  </th>
+                  <th className="px-2 py-2 font-semibold">Origen</th>
                   <th className="px-2 py-2 font-semibold">Fecha</th>
                   <th className="px-2 py-2 font-semibold">Tienda</th>
                   <th className="px-2 py-2 font-semibold">Medio HIOPOS</th>
-                  <th className="px-2 py-2 font-semibold">Pasarela</th>
+                  <th className="px-2 py-1.5 font-semibold">
+                    <select value={fPasarela} onChange={(e) => setFPasarela(e.target.value)} className="filtro-col" title="Filtrar por pasarela">
+                      <option value="">Pasarela ▾</option>
+                      {pasarelas.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </th>
                   <th className="px-2 py-2 font-semibold">Titular</th>
                   <th className="px-2 py-2 font-semibold">····últ4</th>
                   <th className="px-2 py-2 font-semibold">Autoriz.</th>
@@ -236,6 +249,15 @@ export default function Etapa1Page() {
                           <span className="pc-badge" style={{ color: est.color }}>
                             {est.txt}
                           </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-[10px]">
+                          {it.tipo === 'CONCILIADO' || it.tipo === 'DIFERENCIA' ? (
+                            <span style={{ color: it.manual ? 'var(--cyan)' : 'var(--muted)' }}>
+                              {it.manual ? 'manual' : 'auto'}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
                           {fecha ? fmtFecha(fecha) : '—'}
@@ -280,7 +302,7 @@ export default function Etapa1Page() {
                       </tr>
                       {expandido === key && (
                         <tr style={{ background: 'var(--surface2)' }}>
-                          <td colSpan={10} className="px-4 py-3">
+                          <td colSpan={11} className="px-4 py-3">
                             <div className="grid gap-4 sm:grid-cols-2">
                               <RawDetalle titulo="HIOPOS" raw={it.cobro?.raw ?? null} />
                               <RawDetalle titulo="Pasarela" raw={it.trans?.raw ?? null} />
@@ -293,7 +315,7 @@ export default function Etapa1Page() {
                 })}
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-[12px]" style={{ color: 'var(--muted)' }}>
+                    <td colSpan={11} className="px-4 py-8 text-center text-[12px]" style={{ color: 'var(--muted)' }}>
                       Sin ítems para este filtro.
                     </td>
                   </tr>
