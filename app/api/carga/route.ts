@@ -49,9 +49,35 @@ async function pasarelasArchivo(tenantId: string) {
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    const ctx = await resolverTenant(new URL(req.url).searchParams.get('tenant'))
+    const url = new URL(req.url)
+    const ctx = await resolverTenant(url.searchParams.get('tenant'))
     if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
-    return NextResponse.json({ pasarelas: await pasarelasArchivo(ctx.tenantId) })
+    const { tenantId } = ctx
+    const anio = Number(url.searchParams.get('anio')) || new Date().getFullYear()
+
+    const [pasarelas, cobrosPorMes, transPorMes] = await Promise.all([
+      pasarelasArchivo(tenantId),
+      adminDb.cobro.groupBy({
+        by: ['periodo'],
+        where: { tenantId, periodo: { startsWith: `${anio}-` } },
+        _count: { _all: true },
+      }),
+      adminDb.transaccion.groupBy({
+        by: ['periodo', 'proveedor'],
+        where: { tenantId, periodo: { startsWith: `${anio}-` } },
+        _count: { _all: true },
+      }),
+    ])
+
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const periodo = `${anio}-${String(i + 1).padStart(2, '0')}`
+      const cobros = cobrosPorMes.find((c) => c.periodo === periodo)?._count._all ?? 0
+      const porPasarela: Record<string, number> = {}
+      for (const t of transPorMes) if (t.periodo === periodo) porPasarela[t.proveedor] = t._count._all
+      return { periodo, cobros, porPasarela }
+    })
+
+    return NextResponse.json({ anio, pasarelas, meses })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }
