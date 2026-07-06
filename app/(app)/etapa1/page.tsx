@@ -58,11 +58,42 @@ const fmtFecha = (s: string) =>
 const trunc = (s: string, n = 30) => (s.length > n ? s.slice(0, n) + '…' : s)
 const SIN_MATCH: Item['tipo'][] = ['EN_REVISION', 'SIN_TRANSACCION', 'PASARELA_SIN_MATCH']
 
+// Valor (string) de cada columna filtrable, para el filtro por texto.
+function valCol(it: Item, key: string): string {
+  switch (key) {
+    case 'origen':
+      return it.tipo === 'CONCILIADO' || it.tipo === 'DIFERENCIA' ? (it.manual ? 'manual' : 'auto') : ''
+    case 'fecha': {
+      const f = it.cobro?.fechaHora ?? it.trans?.fechaHora
+      return f ? fmtFecha(f) : ''
+    }
+    case 'tienda':
+      return it.cobro?.tienda ?? ''
+    case 'medio':
+      return it.cobro?.medioPago ?? ''
+    case 'termCfg':
+      return it.terminalConfig ?? ''
+    case 'termArch':
+      return it.trans?.terminal ?? ''
+    case 'titular':
+      return it.cobro?.titular ?? ''
+    case 'ult4':
+      return it.cobro?.ultimos4 ?? it.trans?.ultimos4 ?? ''
+    case 'autoriz':
+      return it.cobro?.autorizacion ?? it.trans?.autorizacion ?? ''
+    case 'monto':
+      return it.cobro?.monto ?? it.trans?.monto ?? ''
+    default:
+      return ''
+  }
+}
+
 export default function Etapa1Page() {
   const [data, setData] = useState<Data | null>(null)
   const [periodo, setPeriodo] = useState('')
   const [fPasarela, setFPasarela] = useState('')
   const [fEstado, setFEstado] = useState('')
+  const [ftxt, setFtxt] = useState<Record<string, string>>({})
   const [selCobro, setSelCobro] = useState<string | null>(null)
   const [selTrans, setSelTrans] = useState<string | null>(null)
   const [expandido, setExpandido] = useState<string | null>(null)
@@ -135,12 +166,17 @@ export default function Etapa1Page() {
 
   const r = data?.resumen?.resultado
   const pasarelas = [...new Set((data?.items ?? []).map((i) => i.pasarela).filter(Boolean))] as string[]
-  const items = (data?.items ?? []).filter((i) => {
-    if (fPasarela && i.pasarela !== fPasarela) return false
-    if (!fEstado) return true
-    if (fEstado === 'NO_CONCILIADOS') return SIN_MATCH.includes(i.tipo)
-    return i.tipo === fEstado
+  const items = (data?.items ?? []).filter((it) => {
+    if (fPasarela && it.pasarela !== fPasarela) return false
+    if (fEstado === 'NO_CONCILIADOS') {
+      if (!SIN_MATCH.includes(it.tipo)) return false
+    } else if (fEstado && it.tipo !== fEstado) return false
+    for (const [k, v] of Object.entries(ftxt)) {
+      if (v && !valCol(it, k).toLowerCase().includes(v.toLowerCase())) return false
+    }
+    return true
   })
+  const hayFiltro = !!fEstado || !!fPasarela || Object.values(ftxt).some(Boolean)
   const cobroSel = data?.items.find((i) => i.cobro?.id === selCobro)?.cobro
   const transSel = data?.items.find((i) => i.trans?.id === selTrans)?.trans
   const dif = cobroSel && transSel ? Number(cobroSel.monto) - Number(transSel.monto) : null
@@ -205,11 +241,12 @@ export default function Etapa1Page() {
           )}
 
           <div className="mb-2 flex items-center text-[11px]">
-            {(fEstado || fPasarela) && (
+            {hayFiltro && (
               <button
                 onClick={() => {
                   setFEstado('')
                   setFPasarela('')
+                  setFtxt({})
                 }}
                 style={{ color: 'var(--cyan)' }}
               >
@@ -263,6 +300,21 @@ export default function Etapa1Page() {
                   <th className="px-2 py-2 text-right font-semibold">Monto</th>
                   <th className="px-2 py-2"></th>
                 </tr>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th className="px-1 py-1"></th>
+                  <th className="px-1 py-1"><Fcol k="origen" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="fecha" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="tienda" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="medio" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"></th>
+                  <th className="px-1 py-1"><Fcol k="termCfg" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="termArch" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="titular" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="ult4" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="autoriz" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"><Fcol k="monto" ftxt={ftxt} setFtxt={setFtxt} /></th>
+                  <th className="px-1 py-1"></th>
+                </tr>
               </thead>
               <tbody>
                 {items.map((it) => {
@@ -311,10 +363,10 @@ export default function Etapa1Page() {
                           {it.cobro?.medioPago ?? '—'}
                         </td>
                         <td className="px-2 py-1.5" style={{ color: it.trans ? 'var(--cyan)' : 'var(--muted)' }}>
-                          {it.trans?.pasarela ?? '—'}
+                          {it.trans?.pasarela ?? it.pasarela ?? '—'}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
-                          {it.trans ? (it.terminalConfig ?? '—') : '—'}
+                          {it.terminalConfig ?? '—'}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
                           {it.trans?.terminal ?? '—'}
@@ -411,6 +463,26 @@ export default function Etapa1Page() {
 
 function FragmentRow({ children }: { children: React.ReactNode }) {
   return <>{children}</>
+}
+
+function Fcol({
+  k,
+  ftxt,
+  setFtxt,
+}: {
+  k: string
+  ftxt: Record<string, string>
+  setFtxt: React.Dispatch<React.SetStateAction<Record<string, string>>>
+}) {
+  return (
+    <input
+      value={ftxt[k] ?? ''}
+      onChange={(e) => setFtxt((p) => ({ ...p, [k]: e.target.value }))}
+      placeholder="filtrar"
+      className="w-full rounded px-1 py-0.5 text-[10px] font-normal normal-case"
+      style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text)' }}
+    />
+  )
 }
 
 function Mini({ label, v, color }: { label: string; v: number; color: string }) {
