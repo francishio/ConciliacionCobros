@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSesion } from '@/components/useSesion'
 
 interface Mapeo {
   id: string
@@ -36,6 +37,13 @@ export default function EstablecimientosPage() {
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [abierta, setAbierta] = useState<string | null>(null)
+  const sesion = useSesion()
+  const esCliente = sesion?.rol === 'CLIENTE'
+
+  // El cliente ve su propio tenant (viene de la sesión); el super admin lo escribe.
+  useEffect(() => {
+    if (sesion?.rol === 'CLIENTE' && sesion.tenantNombre) setTenant(sesion.tenantNombre)
+  }, [sesion])
 
   useEffect(() => {
     cargar()
@@ -89,12 +97,18 @@ export default function EstablecimientosPage() {
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
-          <input
-            value={tenant}
-            onChange={(e) => setTenant(e.target.value)}
-            className="pc-input px-3 py-1.5 text-[12px]"
-            placeholder="Cliente"
-          />
+          {esCliente ? (
+            <div className="px-1 py-1.5 text-[12px] font-semibold" style={{ color: 'var(--text)' }}>
+              {tenant}
+            </div>
+          ) : (
+            <input
+              value={tenant}
+              onChange={(e) => setTenant(e.target.value)}
+              className="pc-input px-3 py-1.5 text-[12px]"
+              placeholder="Cliente"
+            />
+          )}
           <button
             onClick={sincronizar}
             disabled={sync}

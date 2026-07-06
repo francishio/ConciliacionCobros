@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSesion } from '@/components/useSesion'
 
 interface Resultado {
   proveedor: string
@@ -34,6 +35,8 @@ export default function Home() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<Respuesta | null>(null)
+  const sesion = useSesion()
+  const esCliente = sesion?.rol === 'CLIENTE'
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -62,12 +65,23 @@ export default function Home() {
       </div>
 
       <form onSubmit={onSubmit} className="pc-panel space-y-5 p-6">
-        <div>
-          <label className="mb-1 block text-[11px] font-medium" style={{ color: 'var(--muted2)' }}>
-            Cliente / empresa
-          </label>
-          <input name="tenant" defaultValue="Rochino" className="pc-input w-full px-3 py-2 text-sm" />
-        </div>
+        {esCliente ? (
+          <div>
+            <label className="mb-1 block text-[11px] font-medium" style={{ color: 'var(--muted2)' }}>
+              Cliente
+            </label>
+            <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              {sesion?.tenantNombre}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-[11px] font-medium" style={{ color: 'var(--muted2)' }}>
+              Cliente / empresa
+            </label>
+            <input name="tenant" defaultValue="" placeholder="Nombre del cliente" className="pc-input w-full px-3 py-2 text-sm" />
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <FileField name="hiopos" label="Export HIOPOS (.csv)" accept=".csv" />
           <FileField name="payway" label="Reporte Payway (.xlsx)" accept=".xlsx" />

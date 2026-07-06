@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSesion } from '@/components/useSesion'
 
 interface Cobro {
   id: string
@@ -43,6 +44,12 @@ export default function ManualPage() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const sesion = useSesion()
+  const esCliente = sesion?.rol === 'CLIENTE'
+
+  useEffect(() => {
+    if (sesion?.rol === 'CLIENTE' && sesion.tenantNombre) setTenant(sesion.tenantNombre)
+  }, [sesion])
 
   async function cargar() {
     setCargando(true)
@@ -96,12 +103,18 @@ export default function ManualPage() {
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
-          <input
-            value={tenant}
-            onChange={(e) => setTenant(e.target.value)}
-            className="pc-input px-3 py-1.5 text-[12px]"
-            placeholder="Cliente"
-          />
+          {esCliente ? (
+            <div className="px-1 py-1.5 text-[12px] font-semibold" style={{ color: 'var(--text)' }}>
+              {tenant}
+            </div>
+          ) : (
+            <input
+              value={tenant}
+              onChange={(e) => setTenant(e.target.value)}
+              className="pc-input px-3 py-1.5 text-[12px]"
+              placeholder="Cliente"
+            />
+          )}
           <button
             onClick={cargar}
             disabled={cargando}
