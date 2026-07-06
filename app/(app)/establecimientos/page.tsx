@@ -7,6 +7,7 @@ interface Mapeo {
   id: string
   proveedor: string
   codigoExterno: string
+  modo: 'MANUAL' | 'API'
   descripcion: string | null
 }
 interface Establecimiento {
@@ -146,16 +147,6 @@ export default function EstablecimientosPage() {
         </div>
       )}
 
-      {data && data.proveedores.length === 0 && (
-        <div
-          className="mb-4 rounded-lg border px-4 py-2.5 text-[12px]"
-          style={{ borderColor: '#7c5e10', background: '#241d07', color: '#fcd34d' }}
-        >
-          Todavía no habilitaste ninguna pasarela. Andá a <b>Pasarelas</b> y activá las que usás para poder mapear sus
-          códigos acá.
-        </div>
-      )}
-
       {data && data.establecimientos.length === 0 && (
         <div className="pc-panel px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--muted)' }}>
           Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba).
@@ -219,6 +210,7 @@ function FilaTienda({
 }) {
   const [proveedor, setProveedor] = useState(proveedores[0]?.codigo ?? 'PAYWAY')
   const [codigo, setCodigo] = useState('')
+  const [modo, setModo] = useState<'MANUAL' | 'API'>('MANUAL')
   const [descripcion, setDescripcion] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -233,7 +225,7 @@ function FilaTienda({
       const res = await fetch('/api/establecimientos', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, descripcion }),
+        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, modo, descripcion }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo agregar')
@@ -329,6 +321,12 @@ function FilaTienda({
                   <span className="font-mono" style={{ color: 'var(--text)' }}>
                     {m.codigoExterno}
                   </span>
+                  <span
+                    className="rounded px-1 text-[9px] font-semibold uppercase"
+                    style={{ background: 'var(--surface3)', color: m.modo === 'API' ? 'var(--green)' : 'var(--muted2)' }}
+                  >
+                    {m.modo === 'API' ? 'API' : 'archivo'}
+                  </span>
                   {m.descripcion && <span style={{ color: 'var(--muted)' }}>· {m.descripcion}</span>}
                   <button onClick={() => borrar(m.id)} className="ml-1" style={{ color: 'var(--muted)' }} title="Quitar">
                     ✕
@@ -350,12 +348,16 @@ function FilaTienda({
                   </option>
                 ))}
               </select>
+              <select value={modo} onChange={(e) => setModo(e.target.value as 'MANUAL' | 'API')} className="pc-input px-2 py-1.5 text-[11px]">
+                <option value="MANUAL">Archivo</option>
+                <option value="API">API</option>
+              </select>
               <input
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
                 placeholder="Código establecimiento/terminal"
                 className="pc-input flex-1 px-2 py-1.5 text-[11px]"
-                style={{ minWidth: 180 }}
+                style={{ minWidth: 160 }}
               />
               <input
                 value={descripcion}

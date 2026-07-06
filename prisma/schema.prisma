@@ -80,26 +80,6 @@ model Pasarela {
   @@map("pasarela")
 }
 
-// Config de una pasarela PARA un cliente: si la usa, con qué alias la ve en
-// informes/pantallas, el modo (archivo manual o API) y —si es API— las
-// credenciales (cifradas, a nivel cliente: una cuenta cubre todas sus tiendas).
-model TenantPasarela {
-  id             String      @id @default(uuid())
-  tenantId       String
-  pasarelaCodigo String // referencia al `codigo` de Pasarela (catálogo global)
-  alias          String // nombre visible en informes/pantallas de este cliente
-  modo           ModoIngesta @default(MANUAL)
-  apiCredEnc     String? // credencial de API cifrada (AES-256-GCM); null si manual
-  activo         Boolean     @default(true)
-  creadoEn       DateTime    @default(now())
-  actualizadoEn  DateTime    @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, pasarelaCodigo])
-  @@map("tenant_pasarela")
-}
-
 enum EstadoTransaccion {
   APROBADA
   ANULADA
@@ -176,7 +156,6 @@ model Tenant {
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
   usuarios          Usuario[]
-  pasarelasTenant   TenantPasarela[]
 
   @@map("tenant")
 }
@@ -220,10 +199,11 @@ model MapeoEstablecimientoPasarela {
   id                String    @id @default(uuid())
   tenantId          String
   establecimientoId String
-  proveedor         String // codigo de Pasarela (ej. 'PAYWAY')
+  proveedor         String      // codigo de Pasarela (ej. 'PAYWAY')
   codigoExterno     String // nro de establecimiento/terminal de la pasarela
+  modo              ModoIngesta @default(MANUAL) // archivo manual o API para esta pasarela en esta tienda
   descripcion       String? // etiqueta libre opcional (ej. "Caja 1")
-  activo            Boolean   @default(true)
+  activo            Boolean     @default(true)
   creadoEn          DateTime  @default(now())
 
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
