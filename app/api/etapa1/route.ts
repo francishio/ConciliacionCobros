@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic'
 type Cobro = {
   id: string
   fechaHora: Date
+  establecimientoId: string | null
   establecimiento: { nombre: string } | null
   medioPago: string
   marca: string | null
@@ -24,6 +25,7 @@ type Trans = {
   id: string
   proveedor: string
   fechaHora: Date
+  terminal: string | null
   ultimos4: string | null
   codAutorizacion: string | null
   importeBruto: unknown
@@ -45,6 +47,7 @@ const mapTrans = (t: Trans) => ({
   id: t.id,
   pasarela: t.proveedor,
   fechaHora: t.fechaHora,
+  terminal: t.terminal,
   ultimos4: t.ultimos4,
   autorizacion: t.codAutorizacion,
   monto: String(t.importeBruto),
@@ -54,6 +57,7 @@ const mapTrans = (t: Trans) => ({
 const SEL_COBRO = {
   id: true,
   fechaHora: true,
+  establecimientoId: true,
   medioPago: true,
   marca: true,
   ultimos4: true,
@@ -62,6 +66,16 @@ const SEL_COBRO = {
   estadoOp: true,
   raw: true,
   establecimiento: { select: { nombre: true } },
+} as const
+const SEL_TRANS = {
+  id: true,
+  proveedor: true,
+  fechaHora: true,
+  terminal: true,
+  ultimos4: true,
+  codAutorizacion: true,
+  importeBruto: true,
+  raw: true,
 } as const
 
 export async function GET(req: Request): Promise<Response> {
@@ -82,44 +96,56 @@ export async function GET(req: Request): Promise<Response> {
     const periodo = pedido && periodos.includes(pedido) ? pedido : periodos[0]
     if (!periodo) return NextResponse.json({ periodos: [], resumen: null, items: [] })
 
-    const [resumen, matches, cobrosSueltos, mapeos] = await Promise.all([
+    const [resumen, matches, cobrosSueltos, mapeos, mapeosEstab] = await Promise.all([
       resumenMes(tenantId, periodo),
       adminDb.match.findMany({
         where: { tenantId, cobro: { periodo } },
-        select: {
-          tipo: true,
-          cobro: { select: SEL_COBRO },
-          transaccion: {
-            select: { id: true, proveedor: true, fechaHora: true, ultimos4: true, codAutorizacion: true, importeBruto: true, raw: true },
-          },
-        },
+        select: { tipo: true, cobro: { select: SEL_COBRO }, transaccion: { select: SEL_TRANS } },
       }),
       adminDb.cobro.findMany({ where: { tenantId, periodo, estadoOp: { in: ['EN_REVISION', 'SIN_TRANSACCION'] } }, select: SEL_COBRO }),
       adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { medioPago: true, proveedor: true } }),
+      adminDb.mapeoEstablecimientoPasarela.findMany({ where: { tenantId }, select: { establecimientoId: true, proveedor: true, codigoExterno: true } }),
     ])
 
     const matchedTransIds = matches.map((m) => m.transaccion.id)
     const transSueltas = await adminDb.transaccion.findMany({
       where: { tenantId, periodo, estado: 'APROBADA', id: { notIn: matchedTransIds } },
-      select: { id: true, proveedor: true, fechaHora: true, ultimos4: true, codAutorizacion: true, importeBruto: true, raw: true },
+      select: SEL_TRANS,
     })
 
     const provDeMedio = new Map(mapeos.map((m) => [m.medioPago, m.proveedor]))
+    // Terminal según la config del establecimiento: (establecimiento|pasarela) → código mapeado.
+    const terminalCfg = new Map(mapeosEstab.map((m) => [`${m.establecimientoId}|${m.proveedor}`, m.codigoExterno]))
+    const cfgDe = (establecimientoId: string | null, pasarela: string | null) =>
+      establecimientoId && pasarela ? terminalCfg.get(`${establecimientoId}|${pasarela}`) ?? null : null
 
     const items = [
       ...matches.map((m) => {
-        const cobro = mapCobro(m.cobro as Cobro)
+        const c = m.cobro as Cobro
+        const cobro = mapCobro(c)
         const trans = mapTrans(m.transaccion as Trans)
         const dif = Math.abs(Number(cobro.monto) - Number(trans.monto)) >= 0.005
-        return { tipo: dif ? 'DIFERENCIA' : 'CONCILIADO', manual: m.tipo === 'MANUAL', pasarela: trans.pasarela, cobro, trans }
+        return {
+          tipo: dif ? 'DIFERENCIA' : 'CONCILIADO',
+          manual: m.tipo === 'MANUAL',
+          pasarela: trans.pasarela,
+          terminalConfig: cfgDe(c.establecimientoId, trans.pasarela),
+          cobro,
+          trans,
+        }
       }),
-      ...cobrosSueltos.map((c) => ({
-        tipo: (c as unknown as { estadoOp?: string }).estadoOp === 'EN_REVISION' ? 'EN_REVISION' : 'SIN_TRANSACCION',
-        pasarela: provDeMedio.get(c.medioPago) ?? null,
-        cobro: mapCobro(c as Cobro),
-        trans: null,
-      })),
-      ...transSueltas.map((t) => ({ tipo: 'PASARELA_SIN_MATCH', pasarela: t.proveedor, cobro: null, trans: mapTrans(t as Trans) })),
+      ...cobrosSueltos.map((c) => {
+        const cob = c as Cobro
+        const pasarela = provDeMedio.get(cob.medioPago) ?? null
+        return {
+          tipo: (c as unknown as { estadoOp?: string }).estadoOp === 'EN_REVISION' ? 'EN_REVISION' : 'SIN_TRANSACCION',
+          pasarela,
+          terminalConfig: cfgDe(cob.establecimientoId, pasarela),
+          cobro: mapCobro(cob),
+          trans: null,
+        }
+      }),
+      ...transSueltas.map((t) => ({ tipo: 'PASARELA_SIN_MATCH', pasarela: t.proveedor, terminalConfig: null, cobro: null, trans: mapTrans(t as Trans) })),
     ]
 
     return NextResponse.json({ periodos, resumen, items })

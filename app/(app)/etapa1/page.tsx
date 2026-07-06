@@ -17,6 +17,7 @@ interface Trans {
   id: string
   pasarela: string
   fechaHora: string
+  terminal: string | null
   ultimos4: string | null
   autorizacion: string | null
   monto: string
@@ -26,6 +27,7 @@ interface Item {
   tipo: 'CONCILIADO' | 'DIFERENCIA' | 'EN_REVISION' | 'SIN_TRANSACCION' | 'PASARELA_SIN_MATCH'
   manual?: boolean
   pasarela: string | null
+  terminalConfig: string | null
   cobro: Cobro | null
   trans: Trans | null
 }
@@ -215,6 +217,12 @@ export default function Etapa1Page() {
                       ))}
                     </select>
                   </th>
+                  <th className="px-2 py-2 font-semibold" title="Terminal según la config del establecimiento">
+                    Term. cfg
+                  </th>
+                  <th className="px-2 py-2 font-semibold" title="Terminal reportada en el archivo de la pasarela">
+                    Term. arch
+                  </th>
                   <th className="px-2 py-2 font-semibold">Titular</th>
                   <th className="px-2 py-2 font-semibold">····últ4</th>
                   <th className="px-2 py-2 font-semibold">Autoriz.</th>
@@ -271,6 +279,12 @@ export default function Etapa1Page() {
                         <td className="px-2 py-1.5" style={{ color: it.trans ? 'var(--cyan)' : 'var(--muted)' }}>
                           {it.trans?.pasarela ?? it.pasarela ?? '—'}
                         </td>
+                        <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
+                          {it.terminalConfig ?? '—'}
+                        </td>
+                        <td className="px-2 py-1.5 font-mono text-[10px]" style={{ color: 'var(--muted2)' }}>
+                          {it.trans?.terminal ?? '—'}
+                        </td>
                         <td className="px-2 py-1.5" style={{ color: 'var(--muted2)' }}>
                           {it.cobro?.titular ?? '—'}
                         </td>
@@ -302,7 +316,7 @@ export default function Etapa1Page() {
                       </tr>
                       {expandido === key && (
                         <tr style={{ background: 'var(--surface2)' }}>
-                          <td colSpan={11} className="px-4 py-3">
+                          <td colSpan={13} className="px-4 py-3">
                             <div className="grid gap-4 sm:grid-cols-2">
                               <RawDetalle titulo="HIOPOS" raw={it.cobro?.raw ?? null} />
                               <RawDetalle titulo="Pasarela" raw={it.trans?.raw ?? null} />
@@ -315,7 +329,7 @@ export default function Etapa1Page() {
                 })}
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-[12px]" style={{ color: 'var(--muted)' }}>
+                    <td colSpan={13} className="px-4 py-8 text-center text-[12px]" style={{ color: 'var(--muted)' }}>
                       Sin ítems para este filtro.
                     </td>
                   </tr>

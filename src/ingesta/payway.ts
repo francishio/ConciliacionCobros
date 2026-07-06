@@ -110,6 +110,7 @@ export function parseTransaccionesPayway(contenido: string | Buffer): Transaccio
       cuotas: Number.isFinite(cuotasN) && cuotasN > 0 ? cuotasN : 1,
       externalReference: null,
       codAutorizacion: nroAut || null,
+      terminal: establecimiento || null,
       marca: (c[idx.marca] ?? '').trim() || null,
       tipoTarjeta: tipoTarjetaDe(c[idx.marca] ?? ''),
       ultimos4: ultimos4(c[idx.numTarjeta]),

@@ -36,6 +36,20 @@ async function resolverEstablecimientos(
   return map
 }
 
+// Mapa (proveedor|terminal) → establecimientoId, según los códigos que el cliente
+// mapeó en Establecimientos. Sirve para anclar cada transacción de pasarela a su
+// tienda (y así conciliar solo dentro de la misma terminal).
+async function resolverEstabPasarela(tenantId: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  await withTenant(tenantId, async (tx) => {
+    const mapeos = await tx.mapeoEstablecimientoPasarela.findMany({
+      select: { proveedor: true, codigoExterno: true, establecimientoId: true },
+    })
+    for (const m of mapeos) map.set(`${m.proveedor}|${m.codigoExterno}`, m.establecimientoId)
+  })
+  return map
+}
+
 // Upsert idempotente de cobros (lado HIOPOS) por (tenantId, origenRef).
 export async function ingestarCobros(
   tenantId: string,
@@ -130,6 +144,7 @@ export async function ingestarTransaccionesBulk(
 ): Promise<ResultadoIngesta> {
   const tamano = opciones?.tamanoLote ?? 1000
   const periodo = opciones?.periodo ?? null
+  const estabPas = await resolverEstabPasarela(tenantId)
   let persistidas = 0
   for (let i = 0; i < registros.length; i += tamano) {
     const lote = registros.slice(i, i + tamano)
@@ -143,6 +158,8 @@ export async function ingestarTransaccionesBulk(
           cuotas: r.cuotas,
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
+          terminal: r.terminal ?? null,
+          establecimientoId: r.terminal ? estabPas.get(`${r.proveedor}|${r.terminal}`) ?? null : null,
           marca: r.marca ?? null,
           ultimos4: r.ultimos4 ?? null,
           tipoTarjeta: r.tipoTarjeta ?? null,

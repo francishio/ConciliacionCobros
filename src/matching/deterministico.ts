@@ -30,6 +30,10 @@ export type ResultadoDeterministico =
   | { tipo: 'ambiguo' }
   | { tipo: 'sin_match' }
 
+// Scope por establecimiento: solo cruza dentro de la misma tienda (terminal).
+const mismoEstab = (cobro: CobroMatch, t: TransaccionMatch): boolean =>
+  cobro.establecimientoId != null && t.establecimientoId != null && cobro.establecimientoId === t.establecimientoId
+
 export function matchDeterministico(
   cobro: CobroMatch,
   idx: IndiceDeterministico,
@@ -37,12 +41,14 @@ export function matchDeterministico(
 ): ResultadoDeterministico {
   // 1. Por código de autorización (tarjeta)
   if (cobro.codAutorizacion) {
-    const cands = (idx.porCodAutorizacion.get(cobro.codAutorizacion) ?? []).filter((t) => !usadas.has(t.id))
+    const cands = (idx.porCodAutorizacion.get(cobro.codAutorizacion) ?? []).filter(
+      (t) => !usadas.has(t.id) && mismoEstab(cobro, t),
+    )
     if (cands.length === 1) return { tipo: 'match', transaccion: cands[0] }
     if (cands.length > 1) return { tipo: 'ambiguo' }
   }
   // 2. Por ticket estampado (MP)
-  const cands2 = (idx.porTicket.get(cobro.hioposTicketId) ?? []).filter((t) => !usadas.has(t.id))
+  const cands2 = (idx.porTicket.get(cobro.hioposTicketId) ?? []).filter((t) => !usadas.has(t.id) && mismoEstab(cobro, t))
   if (cands2.length === 1) return { tipo: 'match', transaccion: cands2[0] }
   if (cands2.length > 1) return { tipo: 'ambiguo' }
 

@@ -21,6 +21,12 @@ export type ResultadoFuzzy =
 const igual = (a: string | null, b: string | null): boolean =>
   a != null && b != null && a.trim().toUpperCase() === b.trim().toUpperCase()
 
+// El match automático scopea por establecimiento: un cobro solo cruza con una
+// transacción de la MISMA tienda (según el terminal mapeado). Si alguno no tiene
+// establecimiento resuelto (terminal sin mapear), no matchea automáticamente.
+const mismoEstab = (cobro: CobroMatch, t: TransaccionMatch): boolean =>
+  cobro.establecimientoId != null && t.establecimientoId != null && cobro.establecimientoId === t.establecimientoId
+
 function puntuar(cobro: CobroMatch, t: TransaccionMatch): number {
   let s = 0.5
   if (igual(cobro.ultimos4, t.ultimos4)) s += 0.3
@@ -38,10 +44,12 @@ export function matchFuzzy(
   const importeCobro = Number(cobro.importe)
   const ventanaMs = p.ventanaMin * 60_000
 
-  // Gate: importe dentro de tolerancia + fecha dentro de ventana, no usada.
+  // Gate: misma tienda (terminal) + importe dentro de tolerancia + fecha dentro
+  // de ventana, no usada.
   let cands = transacciones.filter(
     (t) =>
       !usadas.has(t.id) &&
+      mismoEstab(cobro, t) &&
       Math.abs(importeCobro - Number(t.importeBruto)) <= p.tolMonto &&
       Math.abs(cobro.fechaHora.getTime() - t.fechaHora.getTime()) <= ventanaMs,
   )
