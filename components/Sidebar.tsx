@@ -29,9 +29,8 @@ const nav: Grupo[] = [
     section: 'Conciliación',
     rolVisible: 'CLIENTE',
     items: [
-      { icon: '⇄', label: 'Etapa 1 — Operativa' },
+      { icon: '⇄', label: 'Etapa 1 — Operativa', href: '/etapa1' },
       { icon: '🏦', label: 'Etapa 2 — Financiera' },
-      { icon: '🔗', label: 'Conciliación manual', href: '/manual' },
     ],
   },
   {
