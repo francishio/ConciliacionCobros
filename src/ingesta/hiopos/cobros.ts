@@ -57,13 +57,13 @@ function parseImporteAr(raw: string): string {
   return n.toFixed(2)
 }
 
-// Fecha DD/MM/YYYY con hora opcional. La hora puede venir:
-//   - en la misma celda "Fecha": "DD/MM/YYYY HH:MM[:SS]", o
+// Fecha D/M/YYYY (día y mes de 1 o 2 dígitos) con hora opcional. La hora puede venir:
+//   - en la misma celda "Fecha": "D/M/YYYY HH:MM[:SS]", o
 //   - en una columna aparte "Hora": "HH:MM[:SS]" (rawHora, tiene prioridad).
 // Si no hay hora → medianoche (comportamiento anterior). Tener hora permite
 // estrechar la ventana del matching fuzzy y desempatar cobros del mismo importe.
 function parseFechaAr(raw: string, rawHora?: string | null): Date {
-  const m = (raw ?? '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/)
+  const m = (raw ?? '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)
   if (!m) throw new Error(`Fecha HIOPOS inválida: "${raw}"`)
   let [hh, mi, ss] = [m[4], m[5], m[6]]
   const mh = (rawHora ?? '').trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/)
