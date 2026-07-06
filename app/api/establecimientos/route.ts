@@ -4,23 +4,19 @@
 //                                            → agrega un código de pasarela a una tienda
 //   DELETE { tenant, id }                    → borra un mapeo
 //
-// MVP: el tenant se resuelve por nombre (sin login todavía).
+// El tenant sale de la sesión: CLIENTE → el suyo; SUPERADMIN → ?tenant=.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
+import { resolverTenant } from '@/src/auth/session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-async function tenantIdPorNombre(nombre: string): Promise<string | null> {
-  const t = await adminDb.tenant.findFirst({ where: { nombre }, select: { id: true } })
-  return t?.id ?? null
-}
-
 export async function GET(req: Request): Promise<Response> {
   try {
-    const nombre = new URL(req.url).searchParams.get('tenant')?.trim() || 'Demo'
-    const tenantId = await tenantIdPorNombre(nombre)
-    if (!tenantId) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
+    const ctx = await resolverTenant(new URL(req.url).searchParams.get('tenant'))
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
+    const { tenantId, nombre } = ctx
 
     const [establecimientos, pasarelas] = await Promise.all([
       adminDb.establecimiento.findMany({
@@ -73,7 +69,6 @@ export async function POST(req: Request): Promise<Response> {
       codigoExterno?: string
       descripcion?: string
     }
-    const nombre = (b.tenant ?? '').trim() || 'Demo'
     const codigoExterno = (b.codigoExterno ?? '').trim()
     const proveedor = (b.proveedor ?? '').trim()
     if (!b.establecimientoId || !proveedor || !codigoExterno)
@@ -82,8 +77,9 @@ export async function POST(req: Request): Promise<Response> {
     if (!pasarela || !pasarela.activo)
       return NextResponse.json({ error: `Pasarela inválida o inactiva: ${proveedor}.` }, { status: 400 })
 
-    const tenantId = await tenantIdPorNombre(nombre)
-    if (!tenantId) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
+    const ctx = await resolverTenant(b.tenant)
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
+    const { tenantId } = ctx
 
     // El código debe pertenecer a una sola tienda (unique tenant+proveedor+código).
     const ya = await adminDb.mapeoEstablecimientoPasarela.findFirst({
@@ -115,13 +111,12 @@ export async function POST(req: Request): Promise<Response> {
 export async function DELETE(req: Request): Promise<Response> {
   try {
     const b = (await req.json()) as { tenant?: string; id?: string }
-    const nombre = (b.tenant ?? '').trim() || 'Demo'
     if (!b.id) return NextResponse.json({ error: 'Falta el id del mapeo.' }, { status: 400 })
 
-    const tenantId = await tenantIdPorNombre(nombre)
-    if (!tenantId) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
+    const ctx = await resolverTenant(b.tenant)
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
 
-    await adminDb.mapeoEstablecimientoPasarela.deleteMany({ where: { id: b.id, tenantId } })
+    await adminDb.mapeoEstablecimientoPasarela.deleteMany({ where: { id: b.id, tenantId: ctx.tenantId } })
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 })

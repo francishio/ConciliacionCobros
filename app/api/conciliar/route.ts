@@ -6,6 +6,7 @@
 // resetea los datos previos de ese tenant para que sea re-ejecutable.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
+import { resolverTenant } from '@/src/auth/session'
 import { parseCobrosHiopos } from '@/src/ingesta/hiopos/cobros'
 import { parseTransaccionesPayway } from '@/src/ingesta/payway'
 import { ingestarCobrosBulk, ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
@@ -59,7 +60,9 @@ async function resumenPorEstablecimiento(tenantId: string) {
 export async function POST(req: Request): Promise<Response> {
   try {
     const form = await req.formData()
-    const tenantNombre = String(form.get('tenant') || '').trim() || 'Demo'
+    const ctx = await resolverTenant(String(form.get('tenant') || ''))
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
+    const { tenantId, nombre: tenantNombre } = ctx
     const hioposFile = form.get('hiopos')
     const paywayFile = form.get('payway')
     if (!(hioposFile instanceof File) || !(paywayFile instanceof File)) {
@@ -69,11 +72,7 @@ export async function POST(req: Request): Promise<Response> {
     const cobros = parseCobrosHiopos(Buffer.from(await hioposFile.arrayBuffer()).toString('utf8'))
     const transacciones = parseTransaccionesPayway(Buffer.from(await paywayFile.arrayBuffer()))
 
-    // Tenant por nombre (upsert) + reset de la corrida anterior (demo).
-    const tenant =
-      (await adminDb.tenant.findFirst({ where: { nombre: tenantNombre } })) ??
-      (await adminDb.tenant.create({ data: { nombre: tenantNombre } }))
-    const tenantId = tenant.id
+    // Reset de la corrida anterior (demo).
 
     await adminDb.match.deleteMany({ where: { tenantId } })
     await adminDb.excepcion.deleteMany({ where: { tenantId } })

@@ -36,6 +36,29 @@ enum EstadoFinanciera {
   NO_APLICA
 }
 
+enum Rol {
+  SUPERADMIN // vos (ICG): gestiona clientes, credenciales HIOPOS y catálogo de pasarelas
+  CLIENTE // usuario de un tenant: ve solo sus tiendas
+}
+
+// Usuarios del sistema. Control-plane (se accede vía adminDb, no RLS): el login
+// busca por email a través de todos los tenants. SUPERADMIN tiene tenantId null.
+model Usuario {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  nombre       String?
+  rol          Rol       @default(CLIENTE)
+  tenantId     String? // null para SUPERADMIN
+  activo       Boolean   @default(true)
+  ultimoLogin  DateTime?
+  creadoEn     DateTime  @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@map("usuario")
+}
+
 // Catálogo de pasarelas de cobro (Payway, MercadoPago, Clover/Fiserv, …).
 // Global (no por-tenant): define el universo; qué usa cada cliente lo captura
 // MapeoEstablecimientoPasarela. Los campos `proveedor` de las otras tablas
@@ -127,6 +150,7 @@ model Tenant {
   mapeosPasarela    MapeoEstablecimientoPasarela[]
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
+  usuarios          Usuario[]
 
   @@map("tenant")
 }

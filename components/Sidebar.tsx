@@ -6,7 +6,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const nav: { section: string; items: { icon: string; label: string; href?: string }[] }[] = [
+type Grupo = { section: string; soloAdmin?: boolean; items: { icon: string; label: string; href?: string }[] }
+
+const nav: Grupo[] = [
   {
     section: 'Principal',
     items: [
@@ -29,16 +31,17 @@ const nav: { section: string; items: { icon: string; label: string; href?: strin
   },
   {
     section: 'Configuración',
+    soloAdmin: true,
     items: [
       { icon: '🔑', label: 'Credenciales HIOPOS', href: '/config' },
       { icon: '🔀', label: 'Pasarelas', href: '/pasarelas' },
-      { icon: '💳', label: 'Credenciales pasarelas' },
     ],
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ rol }: { rol: 'SUPERADMIN' | 'CLIENTE' }) {
   const pathname = usePathname()
+  const grupos = nav.filter((g) => !g.soloAdmin || rol === 'SUPERADMIN')
   return (
     <aside
       className="flex w-56 flex-shrink-0 flex-col border-r"
@@ -62,7 +65,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2.5">
-        {nav.map((grupo) => (
+        {grupos.map((grupo) => (
           <div key={grupo.section}>
             <div
               className="px-3.5 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-widest"

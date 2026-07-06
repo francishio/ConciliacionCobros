@@ -4,6 +4,7 @@
 //   Establecimiento por Cód. Tienda. Devuelve cuántas sincronizó.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
+import { resolverTenant } from '@/src/auth/session'
 import { descifrar } from '@/src/config/crypto'
 import { HioposBridgeClient } from '@/src/ingesta/hiopos/bridge'
 import { parseTiendas } from '@/src/ingesta/hiopos/tiendas'
@@ -19,10 +20,11 @@ function hoy(): string {
 export async function POST(req: Request): Promise<Response> {
   try {
     const { tenant } = (await req.json()) as { tenant?: string }
-    const nombre = (tenant ?? '').trim() || 'Demo'
+    const ctx = await resolverTenant(tenant)
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
 
-    const t = await adminDb.tenant.findFirst({ where: { nombre }, select: { id: true, configHiopos: true } })
-    if (!t) return NextResponse.json({ error: `No existe el cliente "${nombre}".` }, { status: 404 })
+    const t = await adminDb.tenant.findUnique({ where: { id: ctx.tenantId }, select: { id: true, configHiopos: true } })
+    if (!t) return NextResponse.json({ error: 'Cliente inexistente.' }, { status: 404 })
     const cfg = t.configHiopos
     if (!cfg?.apiUser || !cfg.apiPasswordEnc)
       return NextResponse.json({ error: 'Faltan las credenciales de HIOPOS (Configuración).' }, { status: 400 })
