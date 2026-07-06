@@ -20,7 +20,8 @@ export async function middleware(req: NextRequest) {
   const esAdmin =
     RUTAS_ADMIN.some((r) => pathname === r || pathname.startsWith(r + '/')) ||
     pathname.startsWith('/api/config') ||
-    pathname.startsWith('/api/pasarelas')
+    pathname.startsWith('/api/pasarelas') ||
+    pathname.startsWith('/api/admin')
   if (esAdmin && s.rol !== 'SUPERADMIN') {
     if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const url = req.nextUrl.clone()
