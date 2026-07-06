@@ -54,7 +54,7 @@ const ESTADO: Record<string, { txt: string; color: string }> = {
 const fmtMonto = (s: string) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(Number(s))
 const fmtFecha = (s: string) =>
-  new Date(s).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  new Date(s).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 const trunc = (s: string, n = 30) => (s.length > n ? s.slice(0, n) + '…' : s)
 const SIN_MATCH: Item['tipo'][] = ['EN_REVISION', 'SIN_TRANSACCION', 'PASARELA_SIN_MATCH']
 
