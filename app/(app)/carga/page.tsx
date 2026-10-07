@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react'
 interface PasarelaArchivo {
   codigo: string
   nombre: string
+  modoArchivo: boolean
+  modoApi: boolean
   tieneParser: boolean
 }
 interface MesEstado {
@@ -30,6 +32,7 @@ export default function CargaPage() {
   const [extractos, setExtractos] = useState<Record<string, File | null>>({})
   const [cargando, setCargando] = useState(false)
   const [sincro, setSincro] = useState(false)
+  const [sincroPas, setSincroPas] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -77,6 +80,33 @@ export default function CargaPage() {
       setError((e as Error).message)
     } finally {
       setSincro(false)
+    }
+  }
+
+  // Sync por API de una pasarela (hoy: Clover). Reemplaza solo esa pasarela del mes.
+  async function sincronizarPasarela(codigo: string, nombre: string) {
+    if (!sel) return
+    if (codigo !== 'CLOVER') {
+      setError(`La sincronización por API de ${nombre} todavía no está implementada.`)
+      return
+    }
+    setSincroPas(codigo)
+    setError(null)
+    setAviso(null)
+    try {
+      const res = await fetch('/api/carga/clover', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ periodo: sel }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo sincronizar')
+      setAviso(`✓ ${nombre} sincronizado: ${json.cloverSincronizadas} transacciones de ${nombreMes(sel)}.`)
+      await cargarEstado()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSincroPas(null)
     }
   }
 
@@ -212,24 +242,50 @@ export default function CargaPage() {
             </span>
           </div>
 
+          {/* Pasarelas modo API: sincronizar por API */}
+          {estado?.pasarelas
+            .filter((p) => p.modoApi)
+            .map((p) => (
+              <div
+                key={p.codigo}
+                className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5"
+                style={{ borderColor: 'var(--border2)', background: 'var(--surface2)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => sincronizarPasarela(p.codigo, p.nombre)}
+                  disabled={sincroPas === p.codigo}
+                  className="rounded-md px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+                  style={{ background: 'var(--surface3)', color: 'var(--text)' }}
+                >
+                  {sincroPas === p.codigo ? 'Sincronizando…' : `↻ Sincronizar ${p.nombre}`}
+                </button>
+                <span className="text-[10.5px]" style={{ color: 'var(--muted)' }}>
+                  Trae las transacciones de {p.nombre} de {nombreMes(sel)} por API. Reemplaza solo esa pasarela del mes.
+                </span>
+              </div>
+            ))}
+
           <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
             …o subir archivos
           </div>
 
           <FileField label="Export HIOPOS (.csv)" accept=".csv" onFile={setHiopos} file={hiopos} opcional />
-          {estado && estado.pasarelas.length > 0 && (
+          {estado && estado.pasarelas.some((p) => p.modoArchivo) && (
             <div className="grid gap-4 sm:grid-cols-2">
-              {estado.pasarelas.map((p) => (
-                <FileField
-                  key={p.codigo}
-                  label={`Extracto ${p.nombre}`}
-                  accept=".xlsx,.csv"
-                  onFile={(f) => setExtractos((prev) => ({ ...prev, [p.codigo]: f }))}
-                  file={extractos[p.codigo] ?? null}
-                  nota={p.tieneParser ? undefined : 'sin parser aún'}
-                  opcional
-                />
-              ))}
+              {estado.pasarelas
+                .filter((p) => p.modoArchivo)
+                .map((p) => (
+                  <FileField
+                    key={p.codigo}
+                    label={`Extracto ${p.nombre}`}
+                    accept=".xlsx,.csv"
+                    onFile={(f) => setExtractos((prev) => ({ ...prev, [p.codigo]: f }))}
+                    file={extractos[p.codigo] ?? null}
+                    nota={p.tieneParser ? undefined : 'sin parser aún'}
+                    opcional
+                  />
+                ))}
             </div>
           )}
 

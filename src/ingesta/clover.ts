@@ -1,0 +1,92 @@
+// Adaptador de ingesta para Clover (Fiserv) — modo API.
+// Trae los pagos de un comercio por rango de fecha vía la Platform REST API y los
+// normaliza al modelo canónico. El código de autorización viene en el pago, así
+// que el cruce con HIOPOS (integrado) puede ser DETERMINÍSTICO 1:1.
+//
+// Base URL por región (ej. Argentina/LatAm: https://api.la.clover.com).
+// Auth: token del comercio (Bearer). Importe en CENTAVOS. Fecha en epoch ms (UTC).
+import type { TipoTarjeta } from '@prisma/client'
+import type { TransaccionNormalizada } from './tipos'
+
+export interface CloverConfig {
+  baseUrl: string // ej. https://api.la.clover.com
+  merchantId: string // MID, ej. B00PSW185T911
+  token: string // API token del comercio (solo lectura)
+}
+
+interface CloverPayment {
+  id: string
+  amount?: number // centavos
+  externalPaymentId?: string
+  createdTime?: number // epoch ms (UTC)
+  result?: string // SUCCESS / FAIL / ...
+  note?: string
+  device?: { id?: string }
+  tender?: { label?: string; labelKey?: string }
+  cardTransaction?: { last4?: string; cardType?: string; authCode?: string }
+}
+
+const authDeNote = (note: string | undefined): string | null => {
+  const m = (note ?? '').match(/ID\s+Autorizaci[oó]n:\s*([^;]+)/i)
+  return m ? m[1].trim() : null
+}
+
+function tipoTarjetaDe(tender: CloverPayment['tender']): TipoTarjeta | null {
+  const k = `${tender?.labelKey ?? ''} ${tender?.label ?? ''}`.toLowerCase()
+  if (/debit|d[eé]bito/.test(k)) return 'DEBITO'
+  if (/credit|cr[eé]dito/.test(k)) return 'CREDITO'
+  return null
+}
+
+function normalizar(p: CloverPayment, merchantId: string): TransaccionNormalizada {
+  const marca = p.cardTransaction?.cardType && p.cardTransaction.cardType !== 'OTHER' ? p.cardTransaction.cardType : null
+  return {
+    proveedor: 'CLOVER',
+    idExterno: p.id,
+    importeBruto: ((p.amount ?? 0) / 100).toFixed(2),
+    cuotas: 1, // Clover no trae cuotas en el pago; default 1
+    externalReference: p.externalPaymentId ?? null,
+    codAutorizacion: p.cardTransaction?.authCode ?? authDeNote(p.note),
+    terminal: merchantId, // un MID = un comercio/tienda → ancla para el scope por establecimiento
+    marca,
+    ultimos4: p.cardTransaction?.last4 ?? null,
+    tipoTarjeta: tipoTarjetaDe(p.tender),
+    estado: 'APROBADA', // solo ingerimos SUCCESS (ver obtenerPagosClover)
+    fechaHora: new Date(p.createdTime ?? Date.now()),
+    raw: p as unknown,
+  }
+}
+
+// Trae los pagos SUCCESS del rango [desde, hasta] (paginado) y los normaliza.
+export async function obtenerPagosClover(
+  cfg: CloverConfig,
+  rango: { desde: Date; hasta: Date },
+  fetchImpl: typeof fetch = fetch,
+): Promise<TransaccionNormalizada[]> {
+  const base = cfg.baseUrl.replace(/\/+$/, '')
+  const desdeMs = rango.desde.getTime()
+  const hastaMs = rango.hasta.getTime()
+  const limit = 1000
+  let offset = 0
+  const todos: CloverPayment[] = []
+
+  for (;;) {
+    const url =
+      `${base}/v3/merchants/${cfg.merchantId}/payments` +
+      `?expand=cardTransaction,tender&limit=${limit}&offset=${offset}` +
+      `&filter=${encodeURIComponent(`createdTime>=${desdeMs}`)}` +
+      `&filter=${encodeURIComponent(`createdTime<=${hastaMs}`)}`
+    const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${cfg.token}` } })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Clover ${res.status} ${res.statusText}: ${body.slice(0, 200)}`)
+    }
+    const j = (await res.json()) as { elements?: CloverPayment[] }
+    const els = j.elements ?? []
+    todos.push(...els)
+    if (els.length < limit) break
+    offset += limit
+  }
+
+  return todos.filter((p) => (p.result ?? 'SUCCESS') === 'SUCCESS').map((p) => normalizar(p, cfg.merchantId))
+}

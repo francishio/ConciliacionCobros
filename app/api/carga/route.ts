@@ -24,21 +24,27 @@ const PARSERS: Record<string, (buf: Buffer) => TransaccionNormalizada[]> = {
   PAYWAY: (buf) => parseTransaccionesPayway(buf),
 }
 
-// Pasarelas del cliente en modo archivo (distinct proveedor de los mapeos MANUAL).
-async function pasarelasArchivo(tenantId: string) {
+// Pasarelas que usa el cliente (distinct proveedor de sus mapeos) con sus modos:
+// modoArchivo (sube extracto) y/o modoApi (sincroniza por API).
+async function pasarelasDelCliente(tenantId: string) {
   const mapeos = await adminDb.mapeoEstablecimientoPasarela.findMany({
-    where: { tenantId, modo: 'MANUAL' },
-    distinct: ['proveedor'],
-    select: { proveedor: true },
+    where: { tenantId },
+    select: { proveedor: true, modo: true },
   })
-  const codigos = mapeos.map((m) => m.proveedor)
-  if (codigos.length === 0) return []
+  if (mapeos.length === 0) return []
+  const codigos = [...new Set(mapeos.map((m) => m.proveedor))]
   const catalogo = await adminDb.pasarela.findMany({
     where: { codigo: { in: codigos } },
     orderBy: { orden: 'asc' },
     select: { codigo: true, nombre: true },
   })
-  return catalogo.map((p) => ({ codigo: p.codigo, nombre: p.nombre, tieneParser: !!PARSERS[p.codigo] }))
+  return catalogo.map((p) => ({
+    codigo: p.codigo,
+    nombre: p.nombre,
+    modoArchivo: mapeos.some((m) => m.proveedor === p.codigo && m.modo === 'MANUAL'),
+    modoApi: mapeos.some((m) => m.proveedor === p.codigo && m.modo === 'API'),
+    tieneParser: !!PARSERS[p.codigo],
+  }))
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -50,7 +56,7 @@ export async function GET(req: Request): Promise<Response> {
     const anio = Number(url.searchParams.get('anio')) || new Date().getFullYear()
 
     const [pasarelas, cobrosPorMes, transPorMes] = await Promise.all([
-      pasarelasArchivo(tenantId),
+      pasarelasDelCliente(tenantId),
       adminDb.cobro.groupBy({
         by: ['periodo'],
         where: { tenantId, periodo: { startsWith: `${anio}-` } },
