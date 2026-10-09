@@ -12,8 +12,9 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'Concilia', statusBarStyle: 'default' },
   icons: {
-    icon: '/icono-192.png',
-    apple: '/icono-192.png',
+    // ?v=2 fuerza al navegador a re-bajar el favicon (antes cacheó el rayo viejo).
+    icon: '/icono-192.png?v=2',
+    apple: '/icono-192.png?v=2',
   },
 }
 
