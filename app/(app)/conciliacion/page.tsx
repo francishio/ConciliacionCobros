@@ -724,8 +724,8 @@ function ReactFragmentRow({
   return (
     <>
       <tr style={{ borderTop: '1px solid var(--border)', background: bgRow }}>
-        <td className="cursor-pointer px-2.5 py-2 text-center" onClick={onToggle}>
-          <span className="mr-1 text-[9px]" style={{ color: 'var(--muted)' }}>
+        <td className="cursor-pointer px-2.5 py-2 text-left" onClick={onToggle}>
+          <span className="mr-1 inline-block w-3 text-[9px]" style={{ color: 'var(--muted)' }}>
             {e.terminales.length > 0 ? (exp ? '▼' : '▶') : '·'}
           </span>
           <span className="font-semibold" style={{ color: 'var(--text)' }}>
@@ -775,7 +775,7 @@ function ReactFragmentRow({
         e.terminales.map((t) => {
           return (
             <tr key={t.codTerminal} style={{ background: 'var(--surface2)' }}>
-              <td className="px-2 py-1 text-center text-[11px]" style={{ color: 'var(--muted2)' }}>
+              <td className="px-2 py-1 pl-10 text-left text-[11px]" style={{ color: 'var(--muted2)' }}>
                 {t.alias ? `${t.alias} (${t.codTerminal})` : `Term. ${t.codTerminal}`}
               </td>
               <td className={`${cC} text-[11px]`}>{t.txHiopos}</td>
