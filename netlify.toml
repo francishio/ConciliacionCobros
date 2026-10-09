@@ -1,0 +1,10 @@
+# Configuración de despliegue en Netlify.
+[build]
+  command = "prisma generate && next build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Plugin oficial de Next.js (maneja SSR, rutas API y middleware en Netlify).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

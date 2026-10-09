@@ -166,7 +166,7 @@ export default function CargaPage() {
       {/* Matriz de estado */}
       {estado && (
         <div className="pc-panel overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <table className="pc-tabla w-full text-[11px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th className="px-3 py-2 text-left font-semibold" style={{ color: 'var(--muted)' }}>

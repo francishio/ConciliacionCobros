@@ -2,23 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design tokens (PayConcil — dark/fintech) ── */
+/* ── Design tokens (HIOPOS Analytics — claro + naranja) ──
+   Se conservan los nombres de token (incluido --cyan/--purple) para que las
+   pantallas existentes adopten el tema sin tocar cada estilo inline: los acentos
+   "cyan/purple" se repintan a naranja de marca. */
 :root {
-  --bg: #0b0f1a;
-  --surface: #111827;
-  --surface2: #1a2235;
-  --surface3: #1f2d45;
-  --border: #1e2d45;
-  --border2: #253552;
-  --text: #e2e8f0;
-  --muted: #64748b;
-  --muted2: #94a3b8;
-  --cyan: #06b6d4;
-  --green: #10b981;
-  --amber: #f59e0b;
-  --red: #ef4444;
-  --purple: #8b5cf6;
-  color-scheme: dark;
+  --bg: #f1f5f9; /* slate-100 */
+  --surface: #ffffff;
+  --surface2: #f8fafc; /* slate-50 */
+  --surface3: #f1f5f9; /* slate-100 */
+  --border: #e2e8f0; /* slate-200 */
+  --border2: #cbd5e1; /* slate-300 */
+  --text: #1e293b; /* slate-800 */
+  --muted: #94a3b8; /* slate-400 */
+  --muted2: #64748b; /* slate-500 */
+  --hio: #ef7d18; /* naranja de marca */
+  --cyan: #ef7d18; /* acento → naranja */
+  --purple: #d96c0c; /* acento secundario → naranja oscuro */
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  color-scheme: light;
 }
 
 body {
@@ -68,7 +72,55 @@ body {
   }
   .pc-input:focus {
     outline: none;
-    border-color: var(--cyan);
+    border-color: var(--hio);
+    box-shadow: 0 0 0 3px rgba(239, 125, 24, 0.12);
+  }
+  /* Cabecera de tabla estilo Analytics (naranja, texto blanco) */
+  .pc-thead {
+    background: var(--hio);
+    color: #fff;
+  }
+  /* Tabla más legible: separadores verticales sutiles entre columnas */
+  .pc-tabla {
+    border-collapse: collapse;
+  }
+  .pc-tabla th,
+  .pc-tabla td {
+    border-right: 0.5px solid var(--border);
+  }
+  .pc-tabla th:last-child,
+  .pc-tabla td:last-child {
+    border-right: 0;
+  }
+  .pc-tabla thead th {
+    border-right-color: rgba(255, 255, 255, 0.22);
+    text-align: center;
+  }
+  /* Botón primario de marca */
+  .pc-btn {
+    background: var(--hio);
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .pc-btn:hover {
+    background: #d96c0c;
+  }
+  .pc-btn:disabled {
+    opacity: 0.5;
+  }
+  /* Cajas de aviso claras */
+  .pc-error {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    border-radius: 8px;
+  }
+  .pc-ok {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #15803d;
+    border-radius: 8px;
   }
   /* Select de filtro embebido en el encabezado de una columna */
   .filtro-col {

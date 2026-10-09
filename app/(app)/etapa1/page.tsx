@@ -90,6 +90,7 @@ function valCol(it: Item, key: string): string {
 
 export default function Etapa1Page() {
   const [data, setData] = useState<Data | null>(null)
+  const [tenant, setTenant] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [fPasarela, setFPasarela] = useState('')
   const [fEstado, setFEstado] = useState('')
@@ -101,11 +102,14 @@ export default function Etapa1Page() {
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
-  async function cargar(p?: string) {
+  async function cargar(p?: string, t?: string) {
     setError(null)
     try {
-      const q = p ? `?periodo=${encodeURIComponent(p)}` : ''
-      const res = await fetch(`/api/etapa1${q}`)
+      const tt = t ?? tenant
+      const qs = new URLSearchParams()
+      if (p) qs.set('periodo', p)
+      if (tt) qs.set('tenant', tt)
+      const res = await fetch(`/api/etapa1?${qs.toString()}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error al cargar')
       setData(json as Data)
@@ -116,8 +120,15 @@ export default function Etapa1Page() {
     }
   }
 
+  // Deep-link desde el tablero: ?tenant=&periodo=&tienda= (pre-carga el filtro).
   useEffect(() => {
-    cargar()
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tenant') ?? ''
+    const p = sp.get('periodo') ?? ''
+    const tienda = sp.get('tienda') ?? ''
+    if (t) setTenant(t)
+    if (tienda) setFtxt({ tienda })
+    cargar(p || undefined, t || undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -130,7 +141,7 @@ export default function Etapa1Page() {
       const res = await fetch('/api/etapa1', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ periodo }),
+        body: JSON.stringify({ periodo, tenant }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo re-conciliar')
@@ -151,7 +162,7 @@ export default function Etapa1Page() {
       const res = await fetch('/api/manual', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ cobroId: selCobro, transaccionId: selTrans }),
+        body: JSON.stringify({ cobroId: selCobro, transaccionId: selTrans, tenant }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo conciliar')
@@ -260,7 +271,7 @@ export default function Etapa1Page() {
 
           {/* Grilla */}
           <div className="pc-panel overflow-x-auto">
-            <table className="w-full text-[11.5px]">
+            <table className="pc-tabla w-full text-[11.5px]">
               <thead>
                 <tr className="text-left text-[9px] uppercase tracking-wide" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                   <th className="px-2 py-1.5 font-semibold">

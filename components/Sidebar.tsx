@@ -1,122 +1,66 @@
 'use client'
 
-// Sidebar del shell (estilo PayConcil). Los ítems con href ya son pantallas
-// reales; el resto son placeholders que se irán habilitando (Establecimientos,
-// Carga, Etapas, Reportes).
+// Sidebar oscuro con etiquetas de texto (estilo HIOPOS Analytics, color de marca
+// naranja en el ítem activo).
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-// `rolVisible` limita la sección a un rol. El SUPERADMIN solo ve Configuración
-// (gestiona clientes/credenciales y el catálogo de pasarelas); el CLIENTE ve lo
-// operativo (Principal / Conciliación / Análisis).
-type Grupo = {
-  section: string
-  rolVisible?: 'SUPERADMIN' | 'CLIENTE'
-  items: { icon: string; label: string; href?: string }[]
-}
+type Item = { label: string; href: string }
+type Grupo = { rolVisible: 'SUPERADMIN' | 'CLIENTE'; items: Item[] }
 
 const nav: Grupo[] = [
   {
-    section: 'Principal',
-    rolVisible: 'CLIENTE',
-    items: [
-      { icon: '🏪', label: 'Establecimientos', href: '/establecimientos' },
-      { icon: '💳', label: 'Medios de pago', href: '/medios' },
-      { icon: '↑', label: 'Cargar archivos', href: '/carga' },
-      { icon: '◈', label: 'Dashboard', href: '/' },
-    ],
-  },
-  {
-    section: 'Conciliación',
-    rolVisible: 'CLIENTE',
-    items: [
-      { icon: '⇄', label: 'Etapa 1 — Operativa', href: '/etapa1' },
-      { icon: '🏦', label: 'Etapa 2 — Financiera' },
-    ],
-  },
-  {
-    section: 'Análisis',
-    rolVisible: 'CLIENTE',
-    items: [{ icon: '⊡', label: 'Reportes' }],
-  },
-  {
-    section: 'Configuración',
     rolVisible: 'SUPERADMIN',
     items: [
-      { icon: '🔑', label: 'Clientes y credenciales HIOPOS', href: '/config' },
-      { icon: '🔀', label: 'Pasarelas', href: '/pasarelas' },
+      { label: 'Pasarelas', href: '/pasarelas' },
+      { label: 'Clientes', href: '/config' },
+      { label: 'Conc HIO-PAS', href: '/conciliacion' },
+      { label: 'Sugerencias', href: '/sugerencias' },
+    ],
+  },
+  {
+    rolVisible: 'CLIENTE',
+    items: [
+      { label: 'Conc HIO-PAS', href: '/conciliacion' },
+      { label: 'Sugerencias', href: '/sugerencias' },
     ],
   },
 ]
 
 export function Sidebar({ rol }: { rol: 'SUPERADMIN' | 'CLIENTE' }) {
   const pathname = usePathname()
-  const grupos = nav.filter((g) => !g.rolVisible || g.rolVisible === rol)
+  const items = nav.filter((g) => g.rolVisible === rol).flatMap((g) => g.items)
   return (
-    <aside
-      className="flex w-56 flex-shrink-0 flex-col border-r"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 border-b px-4 py-3.5" style={{ borderColor: 'var(--border)' }}>
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-base"
-          style={{ background: 'linear-gradient(135deg,var(--cyan),#0891b2)' }}
+    <aside className="flex w-48 flex-shrink-0 flex-col border-r border-black/30 bg-slate-900 py-3">
+      {/* Logo de marca */}
+      <Link href="/conciliacion" className="mb-4 flex items-center px-4" aria-label="Inicio">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-base text-white"
+          style={{ background: 'linear-gradient(135deg,var(--hio),#d96c0c)' }}
         >
           ⚡
-        </div>
-        <div>
-          <div className="text-sm font-bold">ConciliaciónCobros</div>
-          <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-            HIOPOS ↔ Pasarelas
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2.5">
-        {grupos.map((grupo) => (
-          <div key={grupo.section}>
-            <div
-              className="px-3.5 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-widest"
-              style={{ color: 'var(--muted)' }}
-            >
-              {grupo.section}
-            </div>
-            {grupo.items.map((it) => {
-              const active = it.href === pathname
-              const inner = (
-                <>
-                  <span className="w-4 text-center text-[13px]">{it.icon}</span>
-                  {it.label}
-                </>
-              )
-              const cls = 'mx-1.5 my-px flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[11.5px]'
-              if (it.href) {
-                return (
-                  <Link
-                    key={it.label}
-                    href={it.href}
-                    className={cls}
-                    style={active ? { background: 'var(--surface3)', color: 'var(--cyan)' } : { color: 'var(--muted2)' }}
-                  >
-                    {inner}
-                  </Link>
-                )
+        </span>
+      </Link>
+      <nav className="flex flex-1 flex-col gap-0.5 px-2">
+        {items.map((it) => {
+          const active = it.href === pathname
+          return (
+            <Link
+              key={it.label}
+              href={it.href}
+              className="rounded-lg px-3 py-2 text-[12.5px] font-semibold uppercase tracking-wide transition-colors"
+              style={
+                active
+                  ? { background: 'var(--hio)', color: '#fff' }
+                  : { color: '#cbd5e1' }
               }
-              return (
-                <div key={it.label} className={cls} style={{ color: 'var(--muted)', cursor: 'default' }}>
-                  {inner}
-                </div>
-              )
-            })}
-          </div>
-        ))}
+            >
+              {it.label}
+            </Link>
+          )
+        })}
       </nav>
-
-      <div className="border-t px-3.5 py-2.5 text-[10px]" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-        <div className="font-mono text-[9px]">v0.1 · beta</div>
-      </div>
+      <div className="px-4 text-[8px] font-mono text-slate-600">v0.1</div>
     </aside>
   )
 }

@@ -23,7 +23,7 @@ export async function GET(req: Request): Promise<Response> {
         _count: { _all: true },
       }),
       adminDb.mapeoMedioPago.findMany({ where: { tenantId }, select: { codMedioPago: true, proveedor: true } }),
-      adminDb.pasarela.findMany({ where: { activo: true }, orderBy: { orden: 'asc' }, select: { codigo: true, nombre: true } }),
+      adminDb.pasarela.findMany({ orderBy: { orden: 'asc' }, select: { codigo: true, nombre: true } }),
     ])
 
     const provDe = new Map(mapeos.map((m) => [m.codMedioPago, m.proveedor]))

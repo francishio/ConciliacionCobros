@@ -97,7 +97,7 @@ export default function MediosPage() {
       ) : (
         <>
           <div className="pc-panel overflow-hidden">
-            <table className="w-full text-[12px]">
+            <table className="pc-tabla w-full text-[12px]">
               <thead>
                 <tr className="text-left text-[9.5px] uppercase tracking-wide" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                   <th className="px-3 py-2.5 font-semibold">Cód.</th>

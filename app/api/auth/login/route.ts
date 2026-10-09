@@ -30,7 +30,7 @@ export async function POST(req: Request): Promise<Response> {
       tenantNombre: u.tenant?.nombre ?? null,
     })
 
-    const res = NextResponse.json({ rol: u.rol, redirect: u.rol === 'SUPERADMIN' ? '/pasarelas' : '/' })
+    const res = NextResponse.json({ rol: u.rol, redirect: u.rol === 'SUPERADMIN' ? '/pasarelas' : '/conciliacion' })
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

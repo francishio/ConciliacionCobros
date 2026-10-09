@@ -24,15 +24,15 @@ const PARSERS: Record<string, (buf: Buffer) => TransaccionNormalizada[]> = {
   PAYWAY: (buf) => parseTransaccionesPayway(buf),
 }
 
-// Pasarelas que usa el cliente (distinct proveedor de sus mapeos) con sus modos:
+// Pasarelas que usa el cliente (sus cuentas de pasarela) con sus modos:
 // modoArchivo (sube extracto) y/o modoApi (sincroniza por API).
 async function pasarelasDelCliente(tenantId: string) {
-  const mapeos = await adminDb.mapeoEstablecimientoPasarela.findMany({
-    where: { tenantId },
+  const cuentas = await adminDb.cuentaPasarela.findMany({
+    where: { tenantId, activo: true },
     select: { proveedor: true, modo: true },
   })
-  if (mapeos.length === 0) return []
-  const codigos = [...new Set(mapeos.map((m) => m.proveedor))]
+  if (cuentas.length === 0) return []
+  const codigos = [...new Set(cuentas.map((c) => c.proveedor))]
   const catalogo = await adminDb.pasarela.findMany({
     where: { codigo: { in: codigos } },
     orderBy: { orden: 'asc' },
@@ -41,8 +41,8 @@ async function pasarelasDelCliente(tenantId: string) {
   return catalogo.map((p) => ({
     codigo: p.codigo,
     nombre: p.nombre,
-    modoArchivo: mapeos.some((m) => m.proveedor === p.codigo && m.modo === 'MANUAL'),
-    modoApi: mapeos.some((m) => m.proveedor === p.codigo && m.modo === 'API'),
+    modoArchivo: cuentas.some((c) => c.proveedor === p.codigo && c.modo === 'MANUAL'),
+    modoApi: cuentas.some((c) => c.proveedor === p.codigo && c.modo === 'API'),
     tieneParser: !!PARSERS[p.codigo],
   }))
 }

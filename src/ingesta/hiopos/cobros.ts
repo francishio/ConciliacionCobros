@@ -106,8 +106,11 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
   const idx = mapearIndices(header)
   const idxCodTienda = buscarCol(header, ['Cód. Tienda', 'Cód. Establecimiento'])
   const idxTienda = buscarCol(header, ['Tienda', 'Establecimiento'])
+  const idxCodTerminal = buscarCol(header, ['Cód. Terminal', 'Cod. Terminal'])
+  const idxAlias = buscarCol(header, ['Alias'])
   const idxHora = buscarCol(header, ['Hora'])
   const idxCodMedio = buscarCol(header, ['Cód. Medio Pago', 'Cod. Medio Pago', 'Código Medio Pago'])
+  const idxDatosTx = buscarCol(header, ['Datos Transacción', 'Datos Transaccion'])
 
   return filas.slice(1).map((c) => {
     const codDoc = (c[idx.codDoc] ?? '').trim()
@@ -119,6 +122,8 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
       hioposTicketId: codDoc,
       codTienda: idxCodTienda != null ? (c[idxCodTienda] ?? '').trim() || null : null,
       tienda: idxTienda != null ? (c[idxTienda] ?? '').trim() || null : null,
+      codTerminal: idxCodTerminal != null ? (c[idxCodTerminal] ?? '').trim() || null : null,
+      aliasTerminal: idxAlias != null ? (c[idxAlias] ?? '').trim() || null : null,
       medioPago: (c[idx.medioPago] ?? '').trim(),
       codMedioPago: idxCodMedio != null ? (c[idxCodMedio] ?? '').trim() || null : null,
       marca: (c[idx.marca] ?? '').trim() || null,
@@ -127,6 +132,8 @@ export function parseCobrosHiopos(csv: string): CobroNormalizado[] {
       cuotas: 1, // el export no trae cuotas; default 1
       fechaHora: parseFechaAr(c[idx.fecha], idxHora != null ? c[idxHora] : null),
       codAutorizacion: auth || null,
+      // "Datos Transacción" viene como "<payment id>|OK" (Clover). Tomamos el id.
+      refPasarela: idxDatosTx != null ? (c[idxDatosTx] ?? '').trim().split('|')[0].trim() || null : null,
       ultimos4: ultimos4(c[idx.numeroTarjeta]),
       raw: rawObjeto(header, c),
     }

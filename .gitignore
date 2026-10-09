@@ -23,3 +23,6 @@ prisma/*.db-journal
 *.log
 .DS_Store
 Thumbs.db
+
+# Config local de Claude Code (launch.json del preview)
+.claude/

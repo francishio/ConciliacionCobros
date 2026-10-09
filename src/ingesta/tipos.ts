@@ -42,6 +42,8 @@ export interface CobroNormalizado {
   hioposTicketId: string
   codTienda: string | null // Cód. Tienda HIOPOS (ancla del establecimiento)
   tienda: string | null // nombre de la tienda
+  codTerminal: string | null // Cód. Terminal HIOPOS (scope por terminal)
+  aliasTerminal: string | null // Alias de la terminal (ej. "CAJA 01")
   medioPago: string
   codMedioPago: string | null // Cód. Medio Pago HIOPOS (clave estable del mapeo)
   marca: string | null // marca de tarjeta (VISA/MASTERCARD/…)
@@ -50,6 +52,7 @@ export interface CobroNormalizado {
   cuotas: number
   fechaHora: Date
   codAutorizacion: string | null // clave determinística (si integrado)
+  refPasarela: string | null // ref. de la pasarela que HIOPOS estampa (Clover: payment id) — clave única global
   ultimos4: string | null // para matching fuzzy
   raw: unknown // payload crudo del origen (auditoría)
 }

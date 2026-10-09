@@ -42,6 +42,14 @@ async function resolverEstablecimientos(
 async function resolverEstabPasarela(tenantId: string): Promise<Map<string, string>> {
   const map = new Map<string, string>()
   await withTenant(tenantId, async (tx) => {
+    // Cuentas de pasarela mapeadas a una tienda (ej. Clover: MID → establecimiento).
+    const cuentas = await tx.cuentaPasarela.findMany({
+      where: { establecimientoId: { not: null } },
+      select: { proveedor: true, identificador: true, establecimientoId: true },
+    })
+    for (const c of cuentas)
+      if (c.establecimientoId) map.set(`${c.proveedor}|${c.identificador}`, c.establecimientoId)
+    // Mapeos por establecimiento (tabla previa; pasarelas por archivo/terminal).
     const mapeos = await tx.mapeoEstablecimientoPasarela.findMany({
       select: { proveedor: true, codigoExterno: true, establecimientoId: true },
     })
@@ -61,6 +69,8 @@ export async function ingestarCobros(
     for (const c of cobros) {
       const datos = {
         establecimientoId: c.codTienda ? estabs.get(c.codTienda) ?? null : null,
+        codTerminal: c.codTerminal,
+        aliasTerminal: c.aliasTerminal,
         hioposTicketId: c.hioposTicketId,
         medioPago: c.medioPago,
         codMedioPago: c.codMedioPago,
@@ -70,6 +80,7 @@ export async function ingestarCobros(
         cuotas: c.cuotas,
         fechaHora: c.fechaHora,
         codAutorizacion: c.codAutorizacion,
+        refPasarela: c.refPasarela,
         ultimos4: c.ultimos4,
         raw: c.raw as Prisma.InputJsonValue,
       }
@@ -194,6 +205,8 @@ export async function ingestarCobrosBulk(
         data: lote.map((c) => ({
           tenantId,
           establecimientoId: c.codTienda ? estabs.get(c.codTienda) ?? null : null,
+          codTerminal: c.codTerminal,
+          aliasTerminal: c.aliasTerminal,
           origenRef: c.origenRef,
           hioposTicketId: c.hioposTicketId,
           medioPago: c.medioPago,
@@ -204,6 +217,7 @@ export async function ingestarCobrosBulk(
           cuotas: c.cuotas,
           fechaHora: c.fechaHora,
           codAutorizacion: c.codAutorizacion,
+          refPasarela: c.refPasarela,
           ultimos4: c.ultimos4,
           periodo,
           raw: c.raw as Prisma.InputJsonValue,

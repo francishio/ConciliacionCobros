@@ -7,8 +7,6 @@ interface Mapeo {
   id: string
   proveedor: string
   codigoExterno: string
-  modo: 'MANUAL' | 'API'
-  tieneCred: boolean
   descripcion: string | null
 }
 interface Establecimiento {
@@ -35,9 +33,7 @@ export default function EstablecimientosPage() {
   const [tenant, setTenant] = useState('Rochino')
   const [data, setData] = useState<Data | null>(null)
   const [cargando, setCargando] = useState(false)
-  const [sync, setSync] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [aviso, setAviso] = useState<string | null>(null)
   const [abierta, setAbierta] = useState<string | null>(null)
   const sesion = useSesion()
   const esCliente = sesion?.rol === 'CLIENTE'
@@ -68,34 +64,14 @@ export default function EstablecimientosPage() {
     }
   }
 
-  async function sincronizar() {
-    setSync(true)
-    setError(null)
-    setAviso(null)
-    try {
-      const res = await fetch('/api/tiendas/sync', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tenant }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'No se pudo sincronizar')
-      setAviso(`Tiendas sincronizadas desde HIOPOS: ${json.sincronizadas}.`)
-      await cargar()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSync(false)
-    }
-  }
-
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-5 flex items-end gap-3">
         <div>
           <h1 className="text-lg font-bold tracking-tight">Establecimientos</h1>
           <p className="mt-1 text-[12.5px]" style={{ color: 'var(--muted2)' }}>
-            Tus tiendas HIOPOS. Tocá una fila para mapear el código de cada pasarela.
+            Tus tiendas HIOPOS (se crean solas al cargar ventas). Mapeá el código de pasarela solo si
+            necesitás acotar la conciliación por terminal.
           </p>
         </div>
         <div className="ml-auto flex items-end gap-2">
@@ -107,15 +83,6 @@ export default function EstablecimientosPage() {
               placeholder="Cliente"
             />
           )}
-          <button
-            onClick={sincronizar}
-            disabled={sync}
-            className="rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50"
-            style={{ background: 'var(--surface3)', color: 'var(--text)' }}
-            title="Traer las tiendas desde HIOPOS (usa las credenciales y el Exportation ID de Tiendas)"
-          >
-            {sync ? 'Sincronizando…' : '↻ Sincronizar HIOPOS'}
-          </button>
           <button
             onClick={cargar}
             disabled={cargando}
@@ -135,24 +102,15 @@ export default function EstablecimientosPage() {
           {error}
         </div>
       )}
-      {aviso && (
-        <div
-          className="mb-4 rounded-lg border px-4 py-2.5 text-[12px]"
-          style={{ borderColor: '#14532d', background: '#08220f', color: '#86efac' }}
-        >
-          {aviso}
-        </div>
-      )}
-
       {data && data.establecimientos.length === 0 && (
         <div className="pc-panel px-4 py-8 text-center text-[12.5px]" style={{ color: 'var(--muted)' }}>
-          Este cliente todavía no tiene tiendas. Sincronizalas desde HIOPOS (botón de arriba).
+          Este cliente todavía no tiene tiendas. Se crean solas al cargar las ventas de HIOPOS (Cargar archivos).
         </div>
       )}
 
       {data && data.establecimientos.length > 0 && (
         <div className="pc-panel overflow-hidden">
-          <table className="w-full text-[12px]">
+          <table className="pc-tabla w-full text-[12px]">
             <thead>
               <tr
                 className="text-left text-[9.5px] uppercase tracking-wide"
@@ -207,8 +165,6 @@ function FilaTienda({
 }) {
   const [proveedor, setProveedor] = useState(proveedores[0]?.codigo ?? 'PAYWAY')
   const [codigo, setCodigo] = useState('')
-  const [modo, setModo] = useState<'MANUAL' | 'API'>('MANUAL')
-  const [apiCred, setApiCred] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -223,12 +179,11 @@ function FilaTienda({
       const res = await fetch('/api/establecimientos', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, modo, apiCred, descripcion }),
+        body: JSON.stringify({ tenant, establecimientoId: estab.id, proveedor, codigoExterno: codigo, descripcion }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo agregar')
       setCodigo('')
-      setApiCred('')
       setDescripcion('')
       onChange()
     } catch (e) {
@@ -320,13 +275,6 @@ function FilaTienda({
                   <span className="font-mono" style={{ color: 'var(--text)' }}>
                     {m.codigoExterno}
                   </span>
-                  <span
-                    className="rounded px-1 text-[9px] font-semibold uppercase"
-                    style={{ background: 'var(--surface3)', color: m.modo === 'API' ? 'var(--green)' : 'var(--muted2)' }}
-                  >
-                    {m.modo === 'API' ? 'API' : 'archivo'}
-                    {m.modo === 'API' && m.tieneCred ? ' 🔒' : ''}
-                  </span>
                   {m.descripcion && <span style={{ color: 'var(--muted)' }}>· {m.descripcion}</span>}
                   <button onClick={() => borrar(m.id)} className="ml-1" style={{ color: 'var(--muted)' }} title="Quitar">
                     ✕
@@ -347,10 +295,6 @@ function FilaTienda({
                     {p.nombre}
                   </option>
                 ))}
-              </select>
-              <select value={modo} onChange={(e) => setModo(e.target.value as 'MANUAL' | 'API')} className="pc-input px-2 py-1.5 text-[11px]">
-                <option value="MANUAL">Archivo</option>
-                <option value="API">API</option>
               </select>
               <input
                 value={codigo}
@@ -375,20 +319,9 @@ function FilaTienda({
                 {guardando ? 'Agregando…' : '+ Agregar'}
               </button>
             </div>
-            {modo === 'API' && (
-              <div className="mt-2">
-                <input
-                  type="password"
-                  value={apiCred}
-                  onChange={(e) => setApiCred(e.target.value)}
-                  placeholder="Credencial de API (token / clave de acceso a la pasarela)"
-                  className="pc-input w-full px-2 py-1.5 font-mono text-[11px]"
-                />
-                <div className="mt-1 text-[9px]" style={{ color: 'var(--muted)' }}>
-                  🔒 Se guarda cifrada; nunca se muestra de vuelta.
-                </div>
-              </div>
-            )}
+            <div className="mt-2 text-[9px]" style={{ color: 'var(--muted)' }}>
+              Las credenciales de la pasarela se cargan en “Pasarelas y credenciales”, no acá.
+            </div>
           </td>
         </tr>
       )}

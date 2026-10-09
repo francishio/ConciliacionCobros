@@ -46,6 +46,13 @@ enum ModoIngesta {
   API // se obtiene por API con las credenciales del cliente
 }
 
+enum EstadoSugerencia {
+  NUEVO
+  ACEPTADO
+  RECHAZADO
+  IMPLEMENTADO
+}
+
 // Usuarios del sistema. Control-plane (se accede vía adminDb, no RLS): el login
 // busca por email a través de todos los tenants. SUPERADMIN tiene tenantId null.
 model Usuario {
@@ -59,9 +66,28 @@ model Usuario {
   ultimoLogin  DateTime?
   creadoEn     DateTime  @default(now())
 
-  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+  sugerencias Sugerencia[]
 
   @@map("usuario")
+}
+
+// Sugerencias que cada usuario deja para ICG. El usuario ve SOLO las suyas; el
+// SUPERADMIN ve todas y edita el comentario y el estado. Control-plane (adminDb,
+// scope por usuarioId; no RLS por tenant).
+model Sugerencia {
+  id            String           @id @default(uuid())
+  usuarioId     String
+  descripcion   String
+  comentarioHio String? // solo lo edita el SUPERADMIN (ICG)
+  estado        EstadoSugerencia @default(NUEVO)
+  creadoEn      DateTime         @default(now())
+  actualizadoEn DateTime         @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sugerencia")
 }
 
 // Catálogo de pasarelas de cobro (Payway, MercadoPago, Clover/Fiserv, …).
@@ -69,13 +95,12 @@ model Usuario {
 // MapeoEstablecimientoPasarela. Los campos `proveedor` de las otras tablas
 // guardan el `codigo` de acá.
 model Pasarela {
-  id          String   @id @default(uuid())
-  codigo      String   @unique // clave estable: 'PAYWAY', 'MERCADOPAGO', …
-  nombre      String // etiqueta visible: 'Payway', 'Mercado Pago'
-  tipoIngesta String   @default("PENDIENTE") // ARCHIVO | API | PENDIENTE (informativo)
-  activo      Boolean  @default(true)
-  orden       Int      @default(100)
-  creadoEn    DateTime @default(now())
+  id       String   @id @default(uuid())
+  codigo   String   @unique // clave estable: 'PAYWAY', 'MERCADOPAGO', … (la guardan Transaccion/Mapeo/Cuenta)
+  nombre   String // etiqueta visible: 'Payway', 'Mercado Pago'
+  urlApi   String? // base URL para consumir la API (ej. https://api.la.clover.com)
+  orden    Int      @default(100)
+  creadoEn DateTime @default(now())
 
   @@map("pasarela")
 }
@@ -141,6 +166,7 @@ enum EstadoExcepcion {
 model Tenant {
   id       String   @id @default(uuid())
   nombre   String
+  numeroBD String? // nº de base de datos del cliente (HIOPOS/ICG)
   creadoEn DateTime @default(now())
 
   cobros            Cobro[]
@@ -153,6 +179,7 @@ model Tenant {
   mapeosMedioPago   MapeoMedioPago[]
   establecimientos  Establecimiento[]
   mapeosPasarela    MapeoEstablecimientoPasarela[]
+  cuentasPasarela   CuentaPasarela[]
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
   usuarios          Usuario[]
@@ -186,6 +213,7 @@ model Establecimiento {
   cobros        Cobro[]
   transacciones Transaccion[]
   mapeosPasarela MapeoEstablecimientoPasarela[]
+  cuentasPasarela CuentaPasarela[]
 
   @@unique([tenantId, codTienda])
   @@map("establecimiento")
@@ -200,19 +228,52 @@ model MapeoEstablecimientoPasarela {
   tenantId          String
   establecimientoId String
   proveedor         String      // codigo de Pasarela (ej. 'PAYWAY')
-  codigoExterno     String // nro de establecimiento/terminal de la pasarela
+  codigoExterno     String // nro de establecimiento/terminal de la pasarela (= identificador de la cuenta, p. ej. MID)
   modo              ModoIngesta @default(MANUAL) // archivo manual o API para esta pasarela en esta tienda
-  apiCredEnc        String? // credencial de API cifrada (AES-256-GCM); solo si modo=API
+  cuentaPasarelaId  String? // cuenta (credencial) que usa este establecimiento para esta pasarela
   descripcion       String? // etiqueta libre opcional (ej. "Caja 1")
   activo            Boolean     @default(true)
   creadoEn          DateTime  @default(now())
 
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   establecimiento Establecimiento @relation(fields: [establecimientoId], references: [id], onDelete: Cascade)
+  cuenta          CuentaPasarela? @relation(fields: [cuentaPasarelaId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, proveedor, codigoExterno])
   @@index([establecimientoId])
+  @@index([cuentaPasarelaId])
   @@map("mapeo_establecimiento_pasarela")
+}
+
+// Cuenta de una pasarela para un cliente: el lugar ÚNICO de credenciales.
+// Una fila por comercio/cuenta — Clover usa token por-MID, así que un cliente
+// con varios comercios Clover tiene una fila por MID. La credencial se guarda
+// CIFRADA (AES-256-GCM); en modo archivo no hay credencial (identificador = "").
+model CuentaPasarela {
+  id            String      @id @default(uuid())
+  tenantId      String
+  proveedor     String // codigo de Pasarela (CLOVER, MERCADOPAGO, PAYWAY)
+  modo          ModoIngesta @default(API)
+  identificador String      @default("") // MID de Clover / id de cuenta; "" para archivo
+  credencialEnc String? // token/credencial cifrada (iv:tag:ciphertext b64); null en archivo
+  descripcion   String? // etiqueta ("EL AERO - H5")
+  // Mapeo OPCIONAL del dispositivo a HIOPOS (acota la conciliación):
+  //   sin mapeo        → concilia contra todo
+  //   establecimiento  → contra las ventas de ese establecimiento
+  //   establecimiento + terminal → solo ese establecimiento + esa terminal
+  establecimientoId String?
+  terminal          String?
+  activo        Boolean     @default(true)
+  creadoEn      DateTime    @default(now())
+  actualizadoEn DateTime    @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  establecimiento Establecimiento? @relation(fields: [establecimientoId], references: [id], onDelete: SetNull)
+  mapeos          MapeoEstablecimientoPasarela[]
+
+  @@unique([tenantId, proveedor, identificador])
+  @@index([establecimientoId])
+  @@map("cuenta_pasarela")
 }
 
 // Mapea cada medio de pago de HIOPOS a la conciliación (proveedor) a la que
@@ -232,16 +293,15 @@ model MapeoMedioPago {
   @@map("mapeo_medio_pago")
 }
 
-// Credenciales del Bridge Hioffice (HIOPOS) por cliente + Exportation IDs.
-// La password se guarda CIFRADA (AES-256-GCM). Dos exportaciones distintas:
-// una para ventas/cobros y otra para el catálogo de tiendas.
+// Credenciales del Bridge Hioffice (HIOPOS) por cliente + Exportation ID.
+// La password se guarda CIFRADA (AES-256-GCM). Un solo export: las ventas de
+// medios integrados (ya trae el establecimiento embebido en cada fila).
 model ConfigHiopos {
   id             String   @id @default(uuid())
   tenantId       String   @unique
   apiUser        String
   apiPasswordEnc String? // cifrada (iv:tag:ciphertext en base64); null = sin setear
-  expIdVentas    String? // Exportation ID de Ventas/Cobros (GUID o entero, como string)
-  expIdTiendas   String? // Exportation ID de Tiendas
+  expIdVentas    String? // Exportation ID (ventas de medios integrados; GUID o entero como string)
   actualizadoEn  DateTime @updatedAt
   creadoEn       DateTime @default(now())
 
@@ -266,6 +326,8 @@ model Cobro {
   id                String           @id @default(uuid())
   tenantId          String
   establecimientoId String?
+  codTerminal       String? // Cód. Terminal de HIOPOS (para scope por terminal)
+  aliasTerminal     String? // Alias de la terminal (ej. "CAJA 01")
   hioposTicketId    String
   medioPago       String
   codMedioPago    String? // Cód. Medio Pago de HIOPOS (clave estable del mapeo)
@@ -273,6 +335,7 @@ model Cobro {
   cuotas          Int              @default(1)
   fechaHora       DateTime
   codAutorizacion String? // clave determinística (si integrado)
+  refPasarela     String? // ref. de la pasarela que HIOPOS estampa (Clover: payment id de "Datos Transacción") — clave única global
   ultimos4        String? // para matching fuzzy
   marca           String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   tipoTarjeta     TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
@@ -291,6 +354,7 @@ model Cobro {
   @@unique([tenantId, origenRef]) // idempotencia de ingesta
   @@index([tenantId, fechaHora])
   @@index([tenantId, codAutorizacion])
+  @@index([tenantId, refPasarela])
   @@index([tenantId, ultimos4, importe])
   @@index([establecimientoId])
   @@index([tenantId, periodo])

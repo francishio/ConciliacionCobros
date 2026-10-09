@@ -2,9 +2,9 @@
 // CLOVER (modo API) del cliente. Reemplaza solo las transacciones Clover del mes
 // (no toca HIOPOS ni otras pasarelas), re-concilia y devuelve el resumen.
 //
-// Credencial por establecimiento: código = Merchant ID (MID); apiCredEnc = token.
-// Base URL fija para Argentina (api.la.clover.com); se hará configurable si hace
-// falta otra región.
+// Credencial por cuenta de pasarela del cliente: identificador = Merchant ID
+// (MID); credencialEnc = token. Base URL fija para Argentina (api.la.clover.com);
+// se hará configurable si hace falta otra región.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
@@ -40,20 +40,24 @@ export async function POST(req: Request): Promise<Response> {
     if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
     const { tenantId } = ctx
 
-    const mapeos = await adminDb.mapeoEstablecimientoPasarela.findMany({
-      where: { tenantId, proveedor: 'CLOVER', modo: 'API', apiCredEnc: { not: null } },
-      select: { codigoExterno: true, apiCredEnc: true },
-    })
-    if (mapeos.length === 0)
+    const [cuentas, pasarela] = await Promise.all([
+      adminDb.cuentaPasarela.findMany({
+        where: { tenantId, proveedor: 'CLOVER', modo: 'API', activo: true, credencialEnc: { not: null } },
+        select: { identificador: true, credencialEnc: true },
+      }),
+      adminDb.pasarela.findUnique({ where: { codigo: 'CLOVER' }, select: { urlApi: true } }),
+    ])
+    if (cuentas.length === 0)
       return NextResponse.json(
-        { error: 'No hay Clover (modo API) con credencial configurada en Establecimientos.' },
+        { error: 'No hay cuentas Clover (API) con credencial configurada en Pasarelas.' },
         { status: 400 },
       )
 
+    const baseUrl = pasarela?.urlApi?.trim() || CLOVER_BASE_AR
     const rango = rangoMesAr(periodo)
     const todas: TransaccionNormalizada[] = []
-    for (const m of mapeos) {
-      const cfg = { baseUrl: CLOVER_BASE_AR, merchantId: m.codigoExterno, token: descifrar(m.apiCredEnc as string) }
+    for (const c of cuentas) {
+      const cfg = { baseUrl, merchantId: c.identificador, token: descifrar(c.credencialEnc as string) }
       todas.push(...(await obtenerPagosClover(cfg, rango)))
     }
 
