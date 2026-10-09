@@ -3,7 +3,7 @@
 // Clientes (super admin): consolida los datos del cliente (nombre + nº BD +
 // credenciales HIOPOS), las pasarelas asignadas (cuentas MID+token con mapeo
 // opcional a establecimiento/terminal) y los usuarios de acceso.
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 interface Usuario {
   id: string
@@ -611,6 +611,167 @@ interface Medio {
   proveedor: string | null
 }
 
+interface Dev {
+  id: string
+  deviceId: string
+  deviceNombre: string | null
+  serial: string | null
+  modelo: string | null
+  establecimientoId: string | null
+  codTerminal: string | null
+  establecimientoNombre: string | null
+}
+
+// Panel de dispositivos de una cuenta Clover: lista + releer de la API + mapeo a
+// tienda/terminal de HIOPOS.
+function DispositivosPanel({ tenant, cuentaId, establecimientos, onError }: {
+  tenant: string
+  cuentaId: string
+  establecimientos: Estab[]
+  onError: (s: string | null) => void
+}) {
+  const [devs, setDevs] = useState<Dev[]>([])
+  const [cargando, setCargando] = useState(false)
+  const [releyendo, setReleyendo] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  async function cargar() {
+    setCargando(true)
+    try {
+      const res = await fetch(`/api/cuentas-pasarela/dispositivos?tenant=${encodeURIComponent(tenant)}&cuentaId=${cuentaId}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Error al cargar')
+      setDevs(json.dispositivos)
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setCargando(false)
+    }
+  }
+  useEffect(() => {
+    cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cuentaId])
+
+  async function releer() {
+    setReleyendo(true)
+    setMsg(null)
+    onError(null)
+    try {
+      const res = await fetch('/api/cuentas-pasarela/dispositivos', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'sync', tenant, cuentaId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo releer')
+      setDevs(json.dispositivos)
+      setMsg(`${json.comercio}: ${json.dispositivos.length} dispositivos${json.nuevos ? ` (${json.nuevos} nuevos)` : ''}.`)
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setReleyendo(false)
+    }
+  }
+
+  async function mapear(id: string, establecimientoId: string | null, codTerminal: string | null) {
+    onError(null)
+    setDevs((ds) =>
+      ds.map((d) =>
+        d.id === id
+          ? { ...d, establecimientoId, codTerminal, establecimientoNombre: establecimientos.find((e) => e.id === establecimientoId)?.nombre ?? null }
+          : d,
+      ),
+    )
+    try {
+      const res = await fetch('/api/cuentas-pasarela/dispositivos', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'map', tenant, id, establecimientoId, codTerminal }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo guardar')
+    } catch (e) {
+      onError((e as Error).message)
+      cargar()
+    }
+  }
+
+  const termsDe = (estabId: string | null) => (estabId ? establecimientos.find((e) => e.id === estabId)?.terminales ?? [] : [])
+
+  return (
+    <div className="p-3" style={{ background: 'var(--surface2)' }}>
+      <div className="mb-2 flex flex-wrap items-center gap-3">
+        <div className="text-[11px] font-semibold">Dispositivos del comercio → tienda / terminal de HIOPOS</div>
+        <button
+          onClick={releer}
+          disabled={releyendo}
+          className="rounded-md border px-2 py-0.5 text-[10.5px] font-semibold disabled:opacity-50"
+          style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
+        >
+          {releyendo ? 'Releyendo…' : '↻ Releer de Clover'}
+        </button>
+        {msg && <span className="text-[10.5px]" style={{ color: 'var(--green)' }}>{msg}</span>}
+      </div>
+      {cargando ? (
+        <div className="text-[11px]" style={{ color: 'var(--muted)' }}>Cargando…</div>
+      ) : devs.length === 0 ? (
+        <div className="text-[11px]" style={{ color: 'var(--muted)' }}>Sin dispositivos. Tocá “Releer de Clover”.</div>
+      ) : (
+        <table className="pc-tabla w-full text-[11px]">
+          <thead>
+            <tr className="pc-thead text-left text-[9px] uppercase tracking-wide">
+              <th className="px-2 py-1.5 font-semibold">Dispositivo (Clover)</th>
+              <th className="px-2 py-1.5 font-semibold">Tienda HIOPOS</th>
+              <th className="px-2 py-1.5 font-semibold">Terminal HIOPOS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {devs.map((d) => (
+              <tr key={d.id} style={{ borderTop: '1px solid var(--border)' }}>
+                <td className="px-2 py-1">
+                  <span className="font-semibold">{d.deviceNombre ?? '(sin nombre)'}</span>{' '}
+                  <span style={{ color: 'var(--muted)' }}>· {d.modelo ?? '—'} · {d.serial ?? '—'}</span>
+                </td>
+                <td className="px-2 py-1">
+                  <select
+                    value={d.establecimientoId ?? ''}
+                    onChange={(e) => mapear(d.id, e.target.value || null, null)}
+                    className="pc-input px-1.5 py-1 text-[10.5px]"
+                  >
+                    <option value="">— sin asignar —</option>
+                    {establecimientos.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.codTienda ? `${e.codTienda} · ` : ''}
+                        {e.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-2 py-1">
+                  <select
+                    value={d.codTerminal ?? ''}
+                    onChange={(e) => mapear(d.id, d.establecimientoId, e.target.value || null)}
+                    disabled={!d.establecimientoId}
+                    className="pc-input px-1.5 py-1 text-[10.5px] disabled:opacity-50"
+                  >
+                    <option value="">— toda la tienda —</option>
+                    {termsDe(d.establecimientoId).map((t) => (
+                      <option key={t.cod} value={t.cod}>
+                        {t.alias ? `${t.alias} (${t.cod})` : t.cod}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onError: (s: string | null) => void; onClose: () => void }) {
   const [cuentas, setCuentas] = useState<Cuenta[]>([])
   const [pasarelas, setPasarelas] = useState<Pasarela[]>([])
@@ -634,7 +795,8 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
   const mediosDe = (prov: string) => medios.filter((m) => m.proveedor === prov).map((m) => m.codMedioPago)
   const toggleMedio = (cod: string) => setMediosSel((s) => (s.includes(cod) ? s.filter((c) => c !== cod) : [...s, cod]))
 
-  // Probar conexión Clover: trae nombre del comercio + dispositivos.
+  // Panel de dispositivos abierto (cuentaId) + prueba de conexión.
+  const [devPanel, setDevPanel] = useState<string | null>(null)
   const [probando, setProbando] = useState(false)
   const [comercio, setComercio] = useState<{
     nombre: string
@@ -818,8 +980,10 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
             )}
             {cuentas.map((c) => {
               const med = mediosDe(c.proveedor)
+              const esClover = c.proveedor === 'CLOVER' && c.modo === 'API'
               return (
-                <tr key={c.id} style={{ borderTop: '1px solid var(--border)', background: editId === c.id ? 'var(--surface2)' : 'transparent' }}>
+                <Fragment key={c.id}>
+                <tr style={{ borderTop: '1px solid var(--border)', background: editId === c.id ? 'var(--surface2)' : 'transparent' }}>
                   <td className="px-2.5 py-2 font-semibold" style={{ color: 'var(--hio)' }}>
                     {nombrePasarela(c.proveedor)}
                   </td>
@@ -839,6 +1003,16 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
                   </td>
                   <td className="px-2.5 py-2 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {esClover && (
+                        <button
+                          onClick={() => setDevPanel(devPanel === c.id ? null : c.id)}
+                          className="rounded-md border px-2 py-0.5 text-[10.5px] font-semibold"
+                          style={{ borderColor: 'var(--border2)', color: devPanel === c.id ? 'var(--hio)' : 'var(--muted2)' }}
+                          title="Ver y mapear los dispositivos de este comercio"
+                        >
+                          Dispositivos
+                        </button>
+                      )}
                       <button
                         onClick={() => abrirEditar(c)}
                         className="rounded-md border px-2 py-0.5 text-[10.5px] font-semibold"
@@ -852,6 +1026,14 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
                     </div>
                   </td>
                 </tr>
+                {devPanel === c.id && (
+                  <tr>
+                    <td colSpan={8} className="p-0">
+                      <DispositivosPanel tenant={tenant} cuentaId={c.id} establecimientos={establecimientos} onError={onError} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </tbody>

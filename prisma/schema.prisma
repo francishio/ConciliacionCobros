@@ -180,6 +180,7 @@ model Tenant {
   establecimientos  Establecimiento[]
   mapeosPasarela    MapeoEstablecimientoPasarela[]
   cuentasPasarela   CuentaPasarela[]
+  dispositivosPasarela DispositivoPasarela[]
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
   usuarios          Usuario[]
@@ -214,6 +215,7 @@ model Establecimiento {
   transacciones Transaccion[]
   mapeosPasarela MapeoEstablecimientoPasarela[]
   cuentasPasarela CuentaPasarela[]
+  dispositivosPasarela DispositivoPasarela[]
 
   @@unique([tenantId, codTienda])
   @@map("establecimiento")
@@ -270,10 +272,37 @@ model CuentaPasarela {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   establecimiento Establecimiento? @relation(fields: [establecimientoId], references: [id], onDelete: SetNull)
   mapeos          MapeoEstablecimientoPasarela[]
+  dispositivos    DispositivoPasarela[]
 
   @@unique([tenantId, proveedor, identificador])
   @@index([establecimientoId])
   @@map("cuenta_pasarela")
+}
+
+// Dispositivos (terminales físicas) de una cuenta de pasarela, traídos de la API
+// (ej. Clover /devices). Cada dispositivo se mapea a la tienda + terminal de
+// HIOPOS donde opera, para atribuir bien las transacciones por tienda.
+model DispositivoPasarela {
+  id                String   @id @default(uuid())
+  tenantId          String
+  cuentaPasarelaId  String
+  deviceId          String // id del dispositivo en la pasarela (Clover device.id)
+  deviceNombre      String? // nombre en la pasarela (ej. NEBULA-CAJA2)
+  serial            String?
+  modelo            String?
+  establecimientoId String? // tienda HIOPOS mapeada
+  codTerminal       String? // terminal/caja HIOPOS mapeada
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cuenta          CuentaPasarela   @relation(fields: [cuentaPasarelaId], references: [id], onDelete: Cascade)
+  establecimiento Establecimiento? @relation(fields: [establecimientoId], references: [id], onDelete: SetNull)
+
+  @@unique([cuentaPasarelaId, deviceId])
+  @@index([tenantId])
+  @@index([establecimientoId])
+  @@map("dispositivo_pasarela")
 }
 
 // Mapea cada medio de pago de HIOPOS a la conciliación (proveedor) a la que
