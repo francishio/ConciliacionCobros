@@ -517,32 +517,34 @@ export default function ConciliacionPage() {
                   </button>
                 </div>
               </div>
-              {(mCobro || mTrans) && (
+              {mCobro || mTrans ? (
                 <div
-                  className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border p-2.5 text-[11px]"
-                  style={{ borderColor: 'var(--hio)', background: 'var(--surface2)' }}
+                  className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-lg border-2 p-3 text-[12px] shadow-md"
+                  style={{ borderColor: 'var(--hio)', background: 'rgba(239,125,24,0.12)' }}
                 >
-                  <span style={{ color: 'var(--muted2)' }}>
-                    Match manual: {mCobro ? 'cobro ✓' : 'elegí un cobro “HIOPOS sin pasarela”'} ·{' '}
-                    {mTrans ? 'transacción ✓' : 'elegí una “pasarela sin cobro”'}
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                    {mCobro && mTrans
+                      ? '✅ Revisá que sean la misma operación y presioná Conciliar.'
+                      : '👉 Seleccioná la contrapartida (la otra línea en rojo) y presioná Conciliar.'}
+                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--muted2)' }}>
+                    {mCobro ? 'cobro HIO ✓' : 'cobro HIO ✗'} · {mTrans ? 'transacción PAS ✓' : 'transacción PAS ✗'}
                   </span>
                   <button
                     onClick={conciliarManual}
                     disabled={!mCobro || !mTrans}
-                    className="pc-btn ml-auto px-3 py-1 text-[11px] disabled:opacity-50"
+                    className="pc-btn ml-auto px-4 py-1.5 text-[12px] disabled:opacity-50"
                   >
                     Conciliar
                   </button>
-                  <button
-                    onClick={() => {
-                      setMCobro(null)
-                      setMTrans(null)
-                    }}
-                    className="text-[11px]"
-                    style={{ color: 'var(--muted)' }}
-                  >
+                  <button onClick={() => { setMCobro(null); setMTrans(null) }} className="text-[11px]" style={{ color: 'var(--muted)' }}>
                     Cancelar
                   </button>
+                </div>
+              ) : (
+                <div className="mb-3 text-[11px]" style={{ color: 'var(--muted)' }}>
+                  💡 Conciliación manual: tocá una línea <span style={{ color: 'var(--red)', fontWeight: 600 }}>HIO s/CONC</span> o{' '}
+                  <span style={{ color: 'var(--red)', fontWeight: 600 }}>PAS s/CONC</span> y después su contrapartida para cruzarlas a mano.
                 </div>
               )}
               {detCargando ? (
@@ -633,7 +635,6 @@ export default function ConciliacionPage() {
                           const esTransLibre = it.estado === 'PASARELA_SIN_COBRO'
                           const sel = (esCobroLibre && mCobro === it.id) || (esTransLibre && mTrans === it.id)
                           const clickable = esCobroLibre || esTransLibre
-                          const bg = sel ? 'var(--surface3)' : i % 2 === 1 ? 'var(--surface2)' : 'transparent'
                           return (
                             <tr
                               key={it.id}
@@ -645,9 +646,12 @@ export default function ConciliacionPage() {
                                     }
                                   : undefined
                               }
+                              title={clickable ? 'Tocá para seleccionar y conciliar a mano' : undefined}
                               style={{
-                                borderTop: '1px solid var(--border)',
-                                background: bg,
+                                borderTop: sel ? '1px solid var(--hio)' : '1px solid var(--border)',
+                                background: sel ? 'rgba(239,125,24,0.22)' : i % 2 === 1 ? 'var(--surface2)' : 'transparent',
+                                boxShadow: sel ? 'inset 4px 0 0 var(--hio)' : undefined,
+                                fontWeight: sel ? 600 : undefined,
                                 cursor: clickable ? 'pointer' : 'default',
                               }}
                             >
