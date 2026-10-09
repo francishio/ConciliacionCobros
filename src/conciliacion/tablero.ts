@@ -54,12 +54,24 @@ export interface TableroConciliacion {
 const num = (v: unknown): number => (v == null ? 0 : Number(v))
 const r2 = (n: number): number => Math.round(n * 100) / 100
 
-export async function tableroConciliacion(tenantId: string, periodo: string): Promise<TableroConciliacion> {
+// Rango [00:00, 24:00) de un día YYYY-MM-DD en hora de Argentina (UTC-3), en UTC.
+function rangoDiaAr(dia: string): { gte: Date; lt: Date } {
+  const [y, m, d] = dia.split('-').map(Number)
+  return { gte: new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0)), lt: new Date(Date.UTC(y, m - 1, d + 1, 3, 0, 0, 0)) }
+}
+
+export async function tableroConciliacion(tenantId: string, periodo: string, dia?: string | null): Promise<TableroConciliacion> {
+  const rango = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? rangoDiaAr(dia) : null
+  // Filtros de día para las queries crudas (se suman a tenant/periodo) + sus params.
+  const sqlDiaC = rango ? 'AND c."fechaHora" >= $3 AND c."fechaHora" < $4' : ''
+  const sqlDiaT = rango ? 'AND t."fechaHora" >= $3 AND t."fechaHora" < $4' : ''
+  const paramsDia = rango ? [rango.gte, rango.lt] : []
+
   const [cobroGroups, establecimientos, matchedRows, inverseRows] = await Promise.all([
     // Cobros conciliables por (establecimiento, terminal, estado): cantidad + monto.
     adminDb.cobro.groupBy({
       by: ['establecimientoId', 'codTerminal', 'aliasTerminal', 'estadoOp'],
-      where: { tenantId, periodo, estadoOp: { not: 'NO_APLICA' } },
+      where: { tenantId, periodo, estadoOp: { not: 'NO_APLICA' }, ...(rango ? { fechaHora: { gte: rango.gte, lt: rango.lt } } : {}) },
       _count: { _all: true },
       _sum: { importe: true },
     }),
@@ -70,20 +82,22 @@ export async function tableroConciliacion(tenantId: string, periodo: string): Pr
        FROM "match" m
        JOIN "cobro" c ON c.id = m."cobroId"
        JOIN "transaccion" t ON t.id = m."transaccionId"
-       WHERE c."tenantId" = $1 AND c."periodo" = $2
+       WHERE c."tenantId" = $1 AND c."periodo" = $2 ${sqlDiaC}
        GROUP BY c."establecimientoId", c."codTerminal"`,
       tenantId,
       periodo,
+      ...paramsDia,
     ),
     // Cruce inverso: transacciones aprobadas sin cobro (sin match), por establecimiento.
     adminDb.$queryRawUnsafe<{ establecimientoId: string | null; n: number; monto: number }[]>(
       `SELECT t."establecimientoId", count(*)::int AS n, COALESCE(SUM(t."importeBruto"),0)::float8 AS monto
        FROM "transaccion" t
-       WHERE t."tenantId" = $1 AND t."periodo" = $2 AND t."estado" = 'APROBADA'
+       WHERE t."tenantId" = $1 AND t."periodo" = $2 AND t."estado" = 'APROBADA' ${sqlDiaT}
          AND NOT EXISTS (SELECT 1 FROM "match" m WHERE m."transaccionId" = t.id)
        GROUP BY t."establecimientoId"`,
       tenantId,
       periodo,
+      ...paramsDia,
     ),
   ])
 

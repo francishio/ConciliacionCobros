@@ -91,12 +91,6 @@ const moneda = (n: number) =>
 const monedaD = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n)
 const fmtFechaHora = (s: string) =>
   new Date(s).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-// Fecha local (YYYY-MM-DD) para comparar contra el filtro <input type="date">.
-const fechaLocalISO = (s: string | null): string => {
-  if (!s) return ''
-  const d = new Date(s)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const mesLabel = (p: string) => {
   const [y, m] = p.split('-').map(Number)
   const nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -118,6 +112,7 @@ export default function ConciliacionPage() {
   const [clientes, setClientes] = useState<string[]>([])
   const [tenant, setTenant] = useState('')
   const [periodo, setPeriodo] = useState(mesActual())
+  const [dia, setDia] = useState('') // '' = todo el mes; YYYY-MM-DD = un día puntual
   const [data, setData] = useState<Tablero | null>(null)
   const [pasarelas, setPasarelas] = useState<Pasarela[]>([])
   const [cargando, setCargando] = useState(false)
@@ -159,7 +154,7 @@ export default function ConciliacionPage() {
     setError(null)
     setDetEstab(null)
     try {
-      const res = await fetch(`/api/conciliacion/resumen?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}`)
+      const res = await fetch(`/api/conciliacion/resumen?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}${dia ? `&dia=${dia}` : ''}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error al cargar')
       setData(json.tablero)
@@ -175,7 +170,7 @@ export default function ConciliacionPage() {
   useEffect(() => {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant, periodo])
+  }, [tenant, periodo, dia])
 
   async function sincronizar(tipo: 'hiopos' | 'clover', nombre: string) {
     setSincro(tipo)
@@ -258,7 +253,7 @@ export default function ConciliacionPage() {
     setDetCargando(true)
     try {
       const res = await fetch(
-        `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}&estab=${e.id ?? ''}`,
+        `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}&estab=${e.id ?? ''}${dia ? `&dia=${dia}` : ''}`,
       )
       const json = await res.json()
       if (res.ok) setDetItems(json.items)
@@ -278,7 +273,7 @@ export default function ConciliacionPage() {
     setDetCargando(true)
     try {
       const res = await fetch(
-        `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}&scope=sincobro`,
+        `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}&scope=sincobro${dia ? `&dia=${dia}` : ''}`,
       )
       const json = await res.json()
       if (res.ok) setDetItems(json.items)
@@ -289,7 +284,7 @@ export default function ConciliacionPage() {
   }
 
   function urlDetalle(d: { id: string | null }) {
-    const base = `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}`
+    const base = `/api/conciliacion/detalle?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}${dia ? `&dia=${dia}` : ''}`
     return d.id === '__global__' ? `${base}&scope=sincobro` : `${base}&estab=${d.id ?? ''}`
   }
   async function recargarDetalle() {
@@ -304,7 +299,7 @@ export default function ConciliacionPage() {
   async function refrescarResumen() {
     try {
       const json = await (
-        await fetch(`/api/conciliacion/resumen?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}`)
+        await fetch(`/api/conciliacion/resumen?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}${dia ? `&dia=${dia}` : ''}`)
       ).json()
       if (json.tablero) setData(json.tablero)
     } catch {
@@ -378,13 +373,30 @@ export default function ConciliacionPage() {
           </select>
         )}
         <div className="flex items-center gap-1">
-          <button onClick={() => setPeriodo(mover(periodo, -1))} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>
+          <button onClick={() => { setDia(''); setPeriodo(mover(periodo, -1)) }} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>
             ◀
           </button>
           <span className="min-w-[72px] text-center text-[12.5px] font-semibold">{mesLabel(periodo)}</span>
-          <button onClick={() => setPeriodo(mover(periodo, 1))} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>
+          <button onClick={() => { setDia(''); setPeriodo(mover(periodo, 1)) }} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>
             ▶
           </button>
+        </div>
+        {/* Filtro opcional de un día: acomoda TODOS los indicadores y tablas a esa fecha. */}
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={dia}
+            min={`${periodo}-01`}
+            max={`${periodo}-31`}
+            onChange={(e) => setDia(e.target.value)}
+            className="pc-input px-2 py-1 text-[11.5px]"
+            title="Ver un solo día (vacío = todo el mes)"
+          />
+          {dia && (
+            <button onClick={() => setDia('')} className="rounded-md border px-2 py-1 text-[11px]" style={{ borderColor: 'var(--border2)', color: 'var(--muted2)' }} title="Ver todo el mes">
+              ✕ día
+            </button>
+          )}
         </div>
 
         {tenant && (
@@ -572,9 +584,7 @@ export default function ConciliacionPage() {
                         <td className="px-1.5 py-1.5">
                           <input value={detF.idpago ?? ''} onChange={(e) => setDetF({ ...detF, idpago: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
                         </td>
-                        <td className="px-1.5 py-1.5">
-                          <input type="date" value={detF.fecha ?? ''} onChange={(e) => setDetF({ ...detF, fecha: e.target.value })} className="pc-input w-full px-1 py-1 text-[10px]" title="Filtrar por día (HIO o PAS)" />
-                        </td>
+                        <td className="px-1.5 py-1.5"></td>
                         <td className="px-1.5 py-1.5">
                           <input value={detF.terminal ?? ''} onChange={(e) => setDetF({ ...detF, terminal: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
                         </td>
@@ -613,7 +623,6 @@ export default function ConciliacionPage() {
                         const lista = detItems.filter((it) => {
                           if (detSoloNo && it.estado === 'CONCILIADO') return false
                           if (detF.idpago && !inc(it.idPago, detF.idpago)) return false
-                          if (detF.fecha && fechaLocalISO(it.fechaHiopos) !== detF.fecha && fechaLocalISO(it.fechaPasarela) !== detF.fecha) return false
                           if (detF.terminal && !inc(it.terminal, detF.terminal)) return false
                           if (detF.medio && !inc(it.medioPago, detF.medio)) return false
                           if (detF.dispositivo && !inc(it.dispositivo, detF.dispositivo)) return false

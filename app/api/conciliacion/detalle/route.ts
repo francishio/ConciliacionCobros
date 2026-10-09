@@ -52,6 +52,16 @@ export async function GET(req: Request): Promise<Response> {
     const tenantId = ctx.tenantId
     const scope = url.searchParams.get('scope')
 
+    // Filtro opcional de un día (YYYY-MM-DD), en hora de Argentina (UTC-3).
+    const dia = (url.searchParams.get('dia') ?? '').trim()
+    const rango = /^\d{4}-\d{2}-\d{2}$/.test(dia)
+      ? (() => {
+          const [y, m, d] = dia.split('-').map(Number)
+          return { gte: new Date(Date.UTC(y, m - 1, d, 3, 0, 0)), lt: new Date(Date.UTC(y, m - 1, d + 1, 3, 0, 0)) }
+        })()
+      : null
+    const rangoWhere = rango ? { fechaHora: { gte: rango.gte, lt: rango.lt } } : {}
+
     // Nombre del dispositivo (Clover device.id → nombre) para mostrarlo en vez del MID.
     const devs = await adminDb.dispositivoPasarela.findMany({ where: { tenantId }, select: { deviceId: true, deviceNombre: true } })
     const devMap = new Map(devs.map((d) => [d.deviceId, d.deviceNombre]))
@@ -79,7 +89,7 @@ export async function GET(req: Request): Promise<Response> {
     // Modo "sin cobro global": todas las transacciones de pasarela sin match.
     if (scope === 'sincobro') {
       const trans = await adminDb.transaccion.findMany({
-        where: { tenantId, periodo, estado: 'APROBADA', matches: { none: {} } },
+        where: { tenantId, periodo, estado: 'APROBADA', matches: { none: {} }, ...rangoWhere },
         orderBy: { fechaHora: 'asc' },
         select: SEL_TRANS,
       })
@@ -90,7 +100,7 @@ export async function GET(req: Request): Promise<Response> {
 
     const [cobros, transSinCobro] = await Promise.all([
       adminDb.cobro.findMany({
-        where: { tenantId, periodo, establecimientoId: estab, estadoOp: { not: 'NO_APLICA' } },
+        where: { tenantId, periodo, establecimientoId: estab, estadoOp: { not: 'NO_APLICA' }, ...rangoWhere },
         orderBy: { fechaHora: 'asc' },
         select: {
           id: true,
@@ -113,7 +123,7 @@ export async function GET(req: Request): Promise<Response> {
       }),
       // Transacciones de pasarela sin cobro atribuidas a este establecimiento.
       adminDb.transaccion.findMany({
-        where: { tenantId, periodo, estado: 'APROBADA', establecimientoId: estab, matches: { none: {} } },
+        where: { tenantId, periodo, estado: 'APROBADA', establecimientoId: estab, matches: { none: {} }, ...rangoWhere },
         orderBy: { fechaHora: 'asc' },
         select: SEL_TRANS,
       }),

@@ -38,9 +38,10 @@ export async function GET(req: Request): Promise<Response> {
     const periodo = (url.searchParams.get('periodo') ?? '').trim()
     if (!/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })
+    const dia = (url.searchParams.get('dia') ?? '').trim() || null
 
     const [tablero, pasarelas] = await Promise.all([
-      tableroConciliacion(ctx.tenantId, periodo),
+      tableroConciliacion(ctx.tenantId, periodo, dia),
       pasarelasDelCliente(ctx.tenantId),
     ])
     return NextResponse.json({ tenant: ctx.nombre, tablero, pasarelas })
