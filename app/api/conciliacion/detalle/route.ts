@@ -27,9 +27,10 @@ const SEL_TRANS = {
   codAutorizacion: true,
   ultimos4: true,
   terminal: true,
+  deviceId: true,
 } as const
 
-const mapSinCobro = (t: {
+interface TransSel {
   id: string
   fechaHora: Date
   proveedor: string
@@ -38,25 +39,8 @@ const mapSinCobro = (t: {
   codAutorizacion: string | null
   ultimos4: string | null
   terminal: string | null
-}) => ({
-  id: t.id,
-  fechaHiopos: null, // no hay cobro HIOPOS
-  fechaPasarela: t.fechaHora,
-  // Columnas HIO vacías (es una transacción de pasarela sin cobro HIOPOS).
-  terminal: null,
-  medioPago: null,
-  autorizacion: null,
-  ultimos4: null,
-  montoHiopos: null,
-  estado: 'PASARELA_SIN_COBRO',
-  manual: false,
-  // ID de pago (clave de cruce): del lado pasarela.
-  idPago: t.idExterno,
-  // Datos de pasarela
-  dispositivo: t.terminal, // el MID / dispositivo de la pasarela
-  pasarela: t.proveedor,
-  montoPasarela: Number(t.importeBruto),
-})
+  deviceId: string | null
+}
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -67,6 +51,30 @@ export async function GET(req: Request): Promise<Response> {
     if (!/^\d{4}-\d{2}$/.test(periodo)) return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })
     const tenantId = ctx.tenantId
     const scope = url.searchParams.get('scope')
+
+    // Nombre del dispositivo (Clover device.id → nombre) para mostrarlo en vez del MID.
+    const devs = await adminDb.dispositivoPasarela.findMany({ where: { tenantId }, select: { deviceId: true, deviceNombre: true } })
+    const devMap = new Map(devs.map((d) => [d.deviceId, d.deviceNombre]))
+    const dispOf = (deviceId: string | null, terminal: string | null): string | null =>
+      (deviceId ? devMap.get(deviceId) ?? null : null) || terminal
+
+    const mapSinCobro = (t: TransSel) => ({
+      id: t.id,
+      fechaHiopos: null as Date | null, // no hay cobro HIOPOS
+      fechaPasarela: t.fechaHora as Date | null,
+      // Columnas HIO vacías (es una transacción de pasarela sin cobro HIOPOS).
+      terminal: null,
+      medioPago: null,
+      autorizacion: null,
+      ultimos4: null,
+      montoHiopos: null,
+      estado: 'PASARELA_SIN_COBRO',
+      manual: false,
+      idPago: t.idExterno, // clave de cruce, del lado pasarela
+      dispositivo: dispOf(t.deviceId, t.terminal), // nombre del dispositivo (o MID de fallback)
+      pasarela: t.proveedor,
+      montoPasarela: Number(t.importeBruto),
+    })
 
     // Modo "sin cobro global": todas las transacciones de pasarela sin match.
     if (scope === 'sincobro') {
@@ -98,7 +106,7 @@ export async function GET(req: Request): Promise<Response> {
           matches: {
             select: {
               tipo: true,
-              transaccion: { select: { proveedor: true, idExterno: true, importeBruto: true, codAutorizacion: true, terminal: true, fechaHora: true } },
+              transaccion: { select: { proveedor: true, idExterno: true, importeBruto: true, codAutorizacion: true, terminal: true, deviceId: true, fechaHora: true } },
             },
           },
         },
@@ -116,8 +124,8 @@ export async function GET(req: Request): Promise<Response> {
         const t = c.matches[0]?.transaccion ?? null
         return {
           id: c.id,
-          fechaHiopos: c.fechaHora,
-          fechaPasarela: t ? t.fechaHora : null,
+          fechaHiopos: c.fechaHora as Date | null,
+          fechaPasarela: (t ? t.fechaHora : null) as Date | null,
           terminal: c.aliasTerminal ?? c.codTerminal ?? null,
           medioPago: c.medioPago,
           autorizacion: c.codAutorizacion,
@@ -127,7 +135,7 @@ export async function GET(req: Request): Promise<Response> {
           manual: c.matches[0]?.tipo === 'MANUAL',
           // ID de pago: el que estampó HIOPOS (= el de la pasarela cuando concilió).
           idPago: c.refPasarela ?? (t ? t.idExterno : null),
-          dispositivo: t ? t.terminal : null,
+          dispositivo: t ? dispOf(t.deviceId, t.terminal) : null,
           pasarela: t ? t.proveedor : null,
           montoPasarela: t ? Number(t.importeBruto) : null,
         }

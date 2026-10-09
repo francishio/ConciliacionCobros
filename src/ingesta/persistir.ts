@@ -36,11 +36,17 @@ async function resolverEstablecimientos(
   return map
 }
 
-// Mapa (proveedor|terminal) → establecimientoId, según los códigos que el cliente
-// mapeó en Establecimientos. Sirve para anclar cada transacción de pasarela a su
-// tienda (y así conciliar solo dentro de la misma terminal).
-async function resolverEstabPasarela(tenantId: string): Promise<Map<string, string>> {
-  const map = new Map<string, string>()
+interface MapasEstab {
+  porCodigo: Map<string, string> // proveedor|identificador(MID/código) → establecimientoId
+  porDevice: Map<string, string> // deviceId (Clover) → establecimientoId (PRIORIDAD sobre el MID)
+}
+
+// Mapas para anclar cada transacción de pasarela a su tienda:
+//  - por dispositivo (device.id → tienda): lo más fino; prioridad.
+//  - por MID/código (fallback): cuando el dispositivo no está mapeado.
+async function resolverEstabPasarela(tenantId: string): Promise<MapasEstab> {
+  const porCodigo = new Map<string, string>()
+  const porDevice = new Map<string, string>()
   await withTenant(tenantId, async (tx) => {
     // Cuentas de pasarela mapeadas a una tienda (ej. Clover: MID → establecimiento).
     const cuentas = await tx.cuentaPasarela.findMany({
@@ -48,14 +54,29 @@ async function resolverEstabPasarela(tenantId: string): Promise<Map<string, stri
       select: { proveedor: true, identificador: true, establecimientoId: true },
     })
     for (const c of cuentas)
-      if (c.establecimientoId) map.set(`${c.proveedor}|${c.identificador}`, c.establecimientoId)
+      if (c.establecimientoId) porCodigo.set(`${c.proveedor}|${c.identificador}`, c.establecimientoId)
     // Mapeos por establecimiento (tabla previa; pasarelas por archivo/terminal).
     const mapeos = await tx.mapeoEstablecimientoPasarela.findMany({
       select: { proveedor: true, codigoExterno: true, establecimientoId: true },
     })
-    for (const m of mapeos) map.set(`${m.proveedor}|${m.codigoExterno}`, m.establecimientoId)
+    for (const m of mapeos) porCodigo.set(`${m.proveedor}|${m.codigoExterno}`, m.establecimientoId)
+    // Dispositivos mapeados → tienda (ej. Clover: device.id → establecimiento).
+    const devs = await tx.dispositivoPasarela.findMany({
+      where: { establecimientoId: { not: null } },
+      select: { deviceId: true, establecimientoId: true },
+    })
+    for (const d of devs) if (d.establecimientoId) porDevice.set(d.deviceId, d.establecimientoId)
   })
-  return map
+  return { porCodigo, porDevice }
+}
+
+// establecimientoId de una transacción: primero por dispositivo, si no por MID/código.
+function estabDeTransaccion(r: TransaccionNormalizada, mapas: MapasEstab): string | null {
+  if (r.deviceId) {
+    const porDev = mapas.porDevice.get(r.deviceId)
+    if (porDev) return porDev
+  }
+  return r.terminal ? mapas.porCodigo.get(`${r.proveedor}|${r.terminal}`) ?? null : null
 }
 
 // Upsert idempotente de cobros (lado HIOPOS) por (tenantId, origenRef).
@@ -118,6 +139,7 @@ export async function ingestarTransacciones(
           cuotas: r.cuotas,
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
+          deviceId: r.deviceId ?? null,
           marca: r.marca ?? null,
           ultimos4: r.ultimos4 ?? null,
           tipoTarjeta: r.tipoTarjeta ?? null,
@@ -130,6 +152,7 @@ export async function ingestarTransacciones(
           cuotas: r.cuotas,
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
+          deviceId: r.deviceId ?? null,
           marca: r.marca ?? null,
           ultimos4: r.ultimos4 ?? null,
           tipoTarjeta: r.tipoTarjeta ?? null,
@@ -156,7 +179,7 @@ export async function ingestarTransaccionesBulk(
 ): Promise<ResultadoIngesta> {
   const tamano = opciones?.tamanoLote ?? 1000
   const periodo = opciones?.periodo ?? null
-  const estabPas = await resolverEstabPasarela(tenantId)
+  const mapas = await resolverEstabPasarela(tenantId)
   let persistidas = 0
   for (let i = 0; i < registros.length; i += tamano) {
     const lote = registros.slice(i, i + tamano)
@@ -171,7 +194,8 @@ export async function ingestarTransaccionesBulk(
           externalReference: r.externalReference,
           codAutorizacion: r.codAutorizacion,
           terminal: r.terminal ?? null,
-          establecimientoId: r.terminal ? estabPas.get(`${r.proveedor}|${r.terminal}`) ?? null : null,
+          deviceId: r.deviceId ?? null,
+          establecimientoId: estabDeTransaccion(r, mapas),
           marca: r.marca ?? null,
           ultimos4: r.ultimos4 ?? null,
           tipoTarjeta: r.tipoTarjeta ?? null,

@@ -51,7 +51,8 @@ function normalizar(p: CloverPayment, merchantId: string): TransaccionNormalizad
     // contempla además del idExterno (ver indexarTransacciones).
     externalReference: p.order?.id ?? null,
     codAutorizacion: p.cardTransaction?.authCode ?? authDeNote(p.note),
-    terminal: merchantId, // un MID = un comercio/tienda → ancla para el scope por establecimiento
+    terminal: merchantId, // un MID = un comercio → ancla para el scope por establecimiento (fallback)
+    deviceId: p.device?.id ?? null, // dispositivo físico → mapea a tienda/terminal de HIOPOS
     marca,
     ultimos4: p.cardTransaction?.last4 ?? null,
     tipoTarjeta: tipoTarjetaDe(p.tender),
@@ -126,6 +127,7 @@ function normalizarRefund(r: CloverRefund, merchantId: string): TransaccionNorma
     externalReference: r.payment?.id ?? null, // referencia al pago original (informativo)
     codAutorizacion: null,
     terminal: merchantId,
+    deviceId: r.device?.id ?? null,
     marca: null,
     ultimos4: null,
     tipoTarjeta: null,

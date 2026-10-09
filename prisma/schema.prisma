@@ -400,7 +400,8 @@ model Transaccion {
   cuotas            Int               @default(1)
   externalReference String? // ticket HIOPOS estampado (MP) — clave determinística MP
   codAutorizacion   String? // cód. autorización de tarjeta — clave determinística Clover/Payway
-  terminal          String? // nro de establecimiento/terminal reportado por la pasarela (para scope por tienda)
+  terminal          String? // nro de establecimiento/comercio (MID) reportado por la pasarela (fallback de scope)
+  deviceId          String? // id del dispositivo físico de la pasarela (Clover device.id) → mapea a tienda/terminal
   marca             String? // marca de tarjeta (VISA/MASTERCARD/…) para matching fuzzy
   ultimos4          String? // últimos 4 de la tarjeta — para matching fuzzy
   tipoTarjeta       TipoTarjeta? // CREDITO/DEBITO — narrowing fuzzy
