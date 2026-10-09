@@ -189,7 +189,8 @@ export default function ConciliacionPage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo sincronizar')
-      setAviso(`${nombre} actualizado.`)
+      const dev = typeof json.cloverDevoluciones === 'number' ? ` (incluye ${json.cloverDevoluciones} devoluciones)` : ''
+      setAviso(`${nombre} actualizado.${dev}`)
       await cargar()
     } catch (e) {
       setError(msgError(e))

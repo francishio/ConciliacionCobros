@@ -57,6 +57,78 @@ function normalizar(p: CloverPayment, merchantId: string): TransaccionNormalizad
   }
 }
 
+// --- Devoluciones / notas de crédito ---
+// En Clover un refund es un objeto SEPARADO (endpoint /refunds), con su propio id.
+// HIOPOS estampa ESE id de refund en la nota de crédito (refPasarela), así que el
+// cruce es por id, igual que las ventas. Se ingiere en NEGATIVO para que concilie
+// limpio contra el importe negativo de la nota de crédito de HIOPOS.
+interface CloverRefund {
+  id: string
+  amount?: number // centavos (positivo en Clover)
+  createdTime?: number // epoch ms (UTC)
+  payment?: { id?: string }
+  device?: { id?: string }
+}
+
+function normalizarRefund(r: CloverRefund, merchantId: string): TransaccionNormalizada {
+  return {
+    proveedor: 'CLOVER',
+    idExterno: r.id, // id del refund → matchea el refPasarela de la nota de crédito HIOPOS
+    importeBruto: (-(r.amount ?? 0) / 100).toFixed(2), // NEGATIVO: es una devolución
+    cuotas: 1,
+    externalReference: r.payment?.id ?? null, // referencia al pago original (informativo)
+    codAutorizacion: null,
+    terminal: merchantId,
+    marca: null,
+    ultimos4: null,
+    tipoTarjeta: null,
+    estado: 'APROBADA',
+    fechaHora: new Date(r.createdTime ?? Date.now()),
+    raw: r as unknown,
+  }
+}
+
+// Trae las devoluciones del rango [desde, hasta] (paginado) y las normaliza en
+// negativo. Filtra por fecha también del lado cliente por si el endpoint ignora
+// el filtro de createdTime.
+export async function obtenerRefundsClover(
+  cfg: CloverConfig,
+  rango: { desde: Date; hasta: Date },
+  fetchImpl: typeof fetch = fetch,
+): Promise<TransaccionNormalizada[]> {
+  const base = cfg.baseUrl.replace(/\/+$/, '')
+  const desdeMs = rango.desde.getTime()
+  const hastaMs = rango.hasta.getTime()
+  const limit = 1000
+  let offset = 0
+  const todos: CloverRefund[] = []
+
+  for (;;) {
+    const url =
+      `${base}/v3/merchants/${cfg.merchantId}/refunds` +
+      `?limit=${limit}&offset=${offset}` +
+      `&filter=${encodeURIComponent(`createdTime>=${desdeMs}`)}` +
+      `&filter=${encodeURIComponent(`createdTime<=${hastaMs}`)}`
+    const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${cfg.token}` } })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Clover refunds ${res.status} ${res.statusText}: ${body.slice(0, 200)}`)
+    }
+    const j = (await res.json()) as { elements?: CloverRefund[] }
+    const els = j.elements ?? []
+    todos.push(...els)
+    if (els.length < limit) break
+    offset += limit
+  }
+
+  return todos
+    .filter((r) => {
+      const t = r.createdTime ?? 0
+      return t >= desdeMs && t <= hastaMs
+    })
+    .map((r) => normalizarRefund(r, cfg.merchantId))
+}
+
 // Trae los pagos SUCCESS del rango [desde, hasta] (paginado) y los normaliza.
 export async function obtenerPagosClover(
   cfg: CloverConfig,

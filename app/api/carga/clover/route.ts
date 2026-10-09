@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
 import { descifrar } from '@/src/config/crypto'
-import { obtenerPagosClover } from '@/src/ingesta/clover'
+import { obtenerPagosClover, obtenerRefundsClover } from '@/src/ingesta/clover'
 import { ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
 import { reemplazarTransMes, reconciliarMes, limpiarSinPeriodo } from '@/src/carga/bloque'
 import { resumenMes } from '@/src/carga/resumen'
@@ -56,9 +56,13 @@ export async function POST(req: Request): Promise<Response> {
     const baseUrl = pasarela?.urlApi?.trim() || CLOVER_BASE_AR
     const rango = rangoMesAr(periodo)
     const todas: TransaccionNormalizada[] = []
+    let refunds = 0
     for (const c of cuentas) {
       const cfg = { baseUrl, merchantId: c.identificador, token: descifrar(c.credencialEnc as string) }
       todas.push(...(await obtenerPagosClover(cfg, rango)))
+      const devs = await obtenerRefundsClover(cfg, rango) // devoluciones (en negativo)
+      refunds += devs.length
+      todas.push(...devs)
     }
 
     await limpiarSinPeriodo(tenantId)
@@ -67,7 +71,7 @@ export async function POST(req: Request): Promise<Response> {
     await reconciliarMes(tenantId, periodo)
 
     const resumen = await resumenMes(tenantId, periodo)
-    return NextResponse.json({ ...resumen, cloverSincronizadas: todas.length })
+    return NextResponse.json({ ...resumen, cloverSincronizadas: todas.length, cloverDevoluciones: refunds })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }
