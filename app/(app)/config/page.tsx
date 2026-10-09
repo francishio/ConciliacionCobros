@@ -208,6 +208,26 @@ export default function AdminClientesPage() {
     }
   }
 
+  async function eliminarUsuario(u: Usuario) {
+    if (!window.confirm(`¿Eliminar al usuario ${u.email}? No podrá ingresar más. No se puede deshacer.`)) return
+    setError(null)
+    setAviso(null)
+    setPassNueva(null)
+    try {
+      const res = await fetch('/api/admin/usuarios', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: u.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo eliminar')
+      setAviso(`Usuario ${u.email} eliminado.`)
+      await cargar()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   function copiarPass(txt: string) {
     navigator.clipboard
       ?.writeText(txt)
@@ -479,14 +499,24 @@ export default function AdminClientesPage() {
                     style={{ background: 'var(--surface2)' }}
                   >
                     <span style={{ color: 'var(--text)' }}>{u.email}</span>
-                    <button
-                      onClick={() => usuarioAccion({ accion: 'reset', userId: u.id }, u.email)}
-                      className="text-[10.5px] font-semibold"
-                      style={{ color: 'var(--amber)' }}
-                      title="Le pone una contraseña NUEVA al usuario (por si la olvidó). Se muestra una sola vez."
-                    >
-                      Cambiar contraseña
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => usuarioAccion({ accion: 'reset', userId: u.id }, u.email)}
+                        className="text-[10.5px] font-semibold"
+                        style={{ color: 'var(--amber)' }}
+                        title="Le pone una contraseña NUEVA al usuario (por si la olvidó). Se muestra una sola vez."
+                      >
+                        Cambiar contraseña
+                      </button>
+                      <button
+                        onClick={() => eliminarUsuario(u)}
+                        className="text-[10.5px] font-semibold"
+                        style={{ color: 'var(--red)' }}
+                        title="Elimina el usuario. No podrá ingresar más."
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

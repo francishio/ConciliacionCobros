@@ -32,16 +32,7 @@ export function Sidebar({ rol }: { rol: 'SUPERADMIN' | 'CLIENTE' }) {
   const items = nav.filter((g) => g.rolVisible === rol).flatMap((g) => g.items)
   return (
     <aside className="flex w-48 flex-shrink-0 flex-col border-r border-black/30 bg-slate-900 py-3">
-      {/* Logo de marca */}
-      <Link href="/conciliacion" className="mb-4 flex items-center px-4" aria-label="Inicio">
-        <span
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-base text-white"
-          style={{ background: 'linear-gradient(135deg,var(--hio),#d96c0c)' }}
-        >
-          ⚡
-        </span>
-      </Link>
-      <nav className="flex flex-1 flex-col gap-0.5 px-2">
+      <nav className="flex flex-1 flex-col gap-0.5 px-2 pt-1">
         {items.map((it) => {
           const active = it.href === pathname
           return (

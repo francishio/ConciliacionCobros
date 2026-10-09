@@ -95,13 +95,9 @@ export function InstalarApp() {
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4" role="dialog" aria-label="Instalar aplicación">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
         <div className="flex items-start gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg text-white shadow"
-            style={{ background: 'linear-gradient(135deg,#ef7d18,#d96c0c)' }}
-          >
-            ⚡
-          </div>
           <div className="flex-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-hiopos.png" alt="HIOPOS" className="mb-1.5 h-4 w-auto" />
             <div className="text-[13px] font-semibold text-slate-800">Instalá la app</div>
             <div className="mt-0.5 text-[12px] text-slate-500">
               Se abre a pantalla completa y de un toque, sin buscar la pestaña.

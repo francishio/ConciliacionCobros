@@ -63,14 +63,9 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div
-            className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl text-2xl text-white shadow-md"
-            style={{ background: 'linear-gradient(135deg,#ef7d18,#d96c0c)' }}
-          >
-            ⚡
-          </div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-hio-700">HIOPOS</div>
-          <div className="text-xl font-bold text-slate-800">ConciliaciónCobros</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-hiopos.png" alt="HIOPOS" className="mb-3 h-11 w-auto" />
+          <div className="text-xl font-bold text-slate-800">Conciliación de Cobros</div>
           <div className="text-[11px] text-slate-500">HIOPOS ↔ Pasarelas de cobro</div>
         </div>
 
