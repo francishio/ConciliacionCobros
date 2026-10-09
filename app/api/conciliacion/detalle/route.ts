@@ -135,6 +135,14 @@ export async function GET(req: Request): Promise<Response> {
       ...transSinCobro.map(mapSinCobro),
     ]
 
+    // Orden cronológico unificado (conciliados y sin-cobro mezclados) por la fecha
+    // que aplique a cada fila: la de HIOPOS si existe, si no la de la pasarela.
+    items.sort((a, b) => {
+      const da = a.fechaHiopos ?? a.fechaPasarela
+      const db = b.fechaHiopos ?? b.fechaPasarela
+      return (da ? da.getTime() : 0) - (db ? db.getTime() : 0)
+    })
+
     return NextResponse.json({ items })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

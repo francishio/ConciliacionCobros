@@ -91,6 +91,12 @@ const moneda = (n: number) =>
 const monedaD = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n)
 const fmtFechaHora = (s: string) =>
   new Date(s).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+// Fecha local (YYYY-MM-DD) para comparar contra el filtro <input type="date">.
+const fechaLocalISO = (s: string | null): string => {
+  if (!s) return ''
+  const d = new Date(s)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const mesLabel = (p: string) => {
   const [y, m] = p.split('-').map(Number)
   const nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -544,7 +550,9 @@ export default function ConciliacionPage() {
                         <td className="px-1.5 py-1.5">
                           <input value={detF.idpago ?? ''} onChange={(e) => setDetF({ ...detF, idpago: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
                         </td>
-                        <td className="px-1.5 py-1.5"></td>
+                        <td className="px-1.5 py-1.5">
+                          <input type="date" value={detF.fecha ?? ''} onChange={(e) => setDetF({ ...detF, fecha: e.target.value })} className="pc-input w-full px-1 py-1 text-[10px]" title="Filtrar por día (HIO o PAS)" />
+                        </td>
                         <td className="px-1.5 py-1.5">
                           <input value={detF.terminal ?? ''} onChange={(e) => setDetF({ ...detF, terminal: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
                         </td>
@@ -583,6 +591,7 @@ export default function ConciliacionPage() {
                         const lista = detItems.filter((it) => {
                           if (detSoloNo && it.estado === 'CONCILIADO') return false
                           if (detF.idpago && !inc(it.idPago, detF.idpago)) return false
+                          if (detF.fecha && fechaLocalISO(it.fechaHiopos) !== detF.fecha && fechaLocalISO(it.fechaPasarela) !== detF.fecha) return false
                           if (detF.terminal && !inc(it.terminal, detF.terminal)) return false
                           if (detF.medio && !inc(it.medioPago, detF.medio)) return false
                           if (detF.dispositivo && !inc(it.dispositivo, detF.dispositivo)) return false
