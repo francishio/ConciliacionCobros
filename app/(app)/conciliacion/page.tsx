@@ -332,6 +332,25 @@ export default function ConciliacionPage() {
     }
   }
 
+  async function anularManual(cobroId: string) {
+    if (!window.confirm('¿Anular este match manual? El cobro vuelve a "HIO s/CONC" y la transacción queda libre.')) return
+    setError(null)
+    setAviso(null)
+    try {
+      const res = await fetch('/api/manual', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenant, cobroId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo anular')
+      setAviso('Match manual anulado.')
+      await Promise.all([recargarDetalle(), refrescarResumen()])
+    } catch (e) {
+      setError(msgError(e))
+    }
+  }
+
   const k = data?.kpi
   const apiPas = pasarelas.filter((p) => p.modoApi)
   const archivoPas = pasarelas.filter((p) => p.modoArchivo)
@@ -663,10 +682,21 @@ export default function ConciliacionPage() {
                                 {it.montoPasarela != null ? monedaD(it.montoPasarela) : '—'}
                               </td>
                               <td className="px-2 py-1 text-center">
-                                <span style={{ color: est.color, fontWeight: 600 }}>
-                                  {est.txt}
-                                  {it.manual ? ' (manual)' : ''}
-                                </span>
+                                <span style={{ color: est.color, fontWeight: 600 }}>{est.txt}</span>
+                                {it.manual && (
+                                  <>
+                                    {' '}
+                                    <span style={{ color: 'var(--muted)' }}>(manual)</span>{' '}
+                                    <button
+                                      onClick={() => anularManual(it.id)}
+                                      title="Anular este match manual"
+                                      className="text-[10px] font-semibold underline"
+                                      style={{ color: 'var(--red)' }}
+                                    >
+                                      anular
+                                    </button>
+                                  </>
+                                )}
                               </td>
                             </tr>
                           )

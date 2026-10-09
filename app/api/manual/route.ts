@@ -5,7 +5,7 @@
 // El tenant sale de la sesión (CLIENTE → el suyo; SUPERADMIN → ?tenant=).
 import { NextResponse } from 'next/server'
 import { resolverTenant } from '@/src/auth/session'
-import { listarNoConciliados, confirmarMatchManual } from '@/src/matching/manual'
+import { listarNoConciliados, confirmarMatchManual, anularMatchManual } from '@/src/matching/manual'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,6 +57,22 @@ export async function POST(req: Request): Promise<Response> {
 
     const r = await confirmarMatchManual(ctx.tenantId, body.cobroId, body.transaccionId)
     return NextResponse.json(r)
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 })
+  }
+}
+
+// Anula un match manual: DELETE { tenant, cobroId }
+export async function DELETE(req: Request): Promise<Response> {
+  try {
+    const body = (await req.json()) as { tenant?: string; cobroId?: string }
+    if (!body.cobroId) return NextResponse.json({ error: 'Falta cobroId.' }, { status: 400 })
+
+    const ctx = await resolverTenant(body.tenant)
+    if (!ctx) return NextResponse.json({ error: 'No se pudo resolver el cliente.' }, { status: 400 })
+
+    await anularMatchManual(ctx.tenantId, body.cobroId)
+    return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 })
   }

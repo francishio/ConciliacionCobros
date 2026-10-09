@@ -66,3 +66,15 @@ export async function confirmarMatchManual(
     return { matchId: match.id, estadoOp: est }
   })
 }
+
+// Anula un match MANUAL de un cobro: borra el match (la transacción queda libre)
+// y devuelve el cobro a SIN_TRANSACCION. Solo toca matches manuales (los
+// automáticos se re-crean al re-conciliar, no tiene sentido borrarlos acá).
+export async function anularMatchManual(tenantId: string, cobroId: string): Promise<void> {
+  return withTenant(tenantId, async (tx) => {
+    const match = await tx.match.findFirst({ where: { cobroId, tipo: 'MANUAL' }, select: { id: true } })
+    if (!match) throw new Error('Este cobro no tiene un match manual para anular.')
+    await tx.match.delete({ where: { id: match.id } })
+    await tx.cobro.update({ where: { id: cobroId }, data: { estadoOp: 'SIN_TRANSACCION' } })
+  })
+}
