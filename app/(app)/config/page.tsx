@@ -634,6 +634,32 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
   const mediosDe = (prov: string) => medios.filter((m) => m.proveedor === prov).map((m) => m.codMedioPago)
   const toggleMedio = (cod: string) => setMediosSel((s) => (s.includes(cod) ? s.filter((c) => c !== cod) : [...s, cod]))
 
+  // Probar conexión Clover: trae nombre del comercio + dispositivos.
+  const [probando, setProbando] = useState(false)
+  const [comercio, setComercio] = useState<{
+    nombre: string
+    dispositivos: { id: string; serial: string | null; modelo: string | null; nombre: string | null }[]
+  } | null>(null)
+  async function probarConexion() {
+    setProbando(true)
+    setComercio(null)
+    onError(null)
+    try {
+      const res = await fetch('/api/cuentas-pasarela/clover-info', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenant, cuentaId: editId, mid: identificador.trim(), token: credencial.trim() }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'No se pudo conectar')
+      setComercio(json)
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setProbando(false)
+    }
+  }
+
   async function cargar() {
     setCargando(true)
     try {
@@ -889,6 +915,40 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
               placeholder={editId ? 'Token (vacío = conservar el actual)' : 'Token / credencial de acceso'}
               className="pc-input mt-2 w-full px-2 py-1.5 font-mono text-[11px]"
             />
+          )}
+
+          {proveedor === 'CLOVER' && modo === 'API' && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={probarConexion}
+                disabled={probando}
+                className="rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
+                style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
+              >
+                {probando ? 'Probando…' : '🔌 Probar conexión / ver dispositivos'}
+              </button>
+              {comercio && (
+                <div className="mt-2 rounded-lg border p-2.5 text-[11px]" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
+                  <div className="mb-1">
+                    <span style={{ color: 'var(--muted)' }}>Comercio:</span> <span className="font-semibold">{comercio.nombre}</span>
+                  </div>
+                  <div className="mb-1" style={{ color: 'var(--muted)' }}>Dispositivos ({comercio.dispositivos.length}):</div>
+                  {comercio.dispositivos.length === 0 ? (
+                    <div style={{ color: 'var(--muted)' }}>— (el token no tiene permiso de dispositivos, o el comercio no tiene)</div>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {comercio.dispositivos.map((d) => (
+                        <li key={d.id} className="font-mono">
+                          {d.nombre ? `${d.nombre} · ` : ''}
+                          {d.modelo ?? '—'} · serial {d.serial ?? '—'} · <span style={{ color: 'var(--muted2)' }}>id {d.id}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Medios de pago de HIOPOS que mapean a esta pasarela (multi-selección) */}

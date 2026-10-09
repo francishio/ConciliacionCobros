@@ -61,6 +61,49 @@ function normalizar(p: CloverPayment, merchantId: string): TransaccionNormalizad
   }
 }
 
+// --- Verificación de cuenta / descubrimiento de dispositivos ---
+// Con el MID + token: trae el NOMBRE del comercio (para confirmar que el MID/token
+// son correctos) y la lista de DISPOSITIVOS (terminales físicas) de ese comercio,
+// para después mapear cada dispositivo → tienda/terminal de HIOPOS.
+export interface DispositivoClover {
+  id: string
+  serial: string | null
+  modelo: string | null
+  nombre: string | null
+}
+export interface ComercioClover {
+  nombre: string
+  dispositivos: DispositivoClover[]
+}
+
+export async function verificarComercioClover(cfg: CloverConfig, fetchImpl: typeof fetch = fetch): Promise<ComercioClover> {
+  const base = cfg.baseUrl.replace(/\/+$/, '')
+  const headers = { Authorization: `Bearer ${cfg.token}` }
+
+  const mRes = await fetchImpl(`${base}/v3/merchants/${cfg.merchantId}`, { headers })
+  if (!mRes.ok) {
+    const body = await mRes.text().catch(() => '')
+    throw new Error(`Clover ${mRes.status} ${mRes.statusText}: ${body.slice(0, 200)}`)
+  }
+  const m = (await mRes.json()) as { name?: string }
+
+  // Dispositivos (si el token no tiene permiso, devolvemos lista vacía sin romper).
+  let dispositivos: DispositivoClover[] = []
+  const dRes = await fetchImpl(`${base}/v3/merchants/${cfg.merchantId}/devices`, { headers })
+  if (dRes.ok) {
+    const dj = (await dRes.json()) as {
+      elements?: { id?: string; serial?: string; model?: string; productName?: string; deviceTypeName?: string; name?: string }[]
+    }
+    dispositivos = (dj.elements ?? []).map((d) => ({
+      id: d.id ?? '',
+      serial: d.serial ?? null,
+      modelo: d.productName ?? d.model ?? d.deviceTypeName ?? null,
+      nombre: d.name ?? null,
+    }))
+  }
+  return { nombre: m.name ?? '(sin nombre)', dispositivos }
+}
+
 // --- Devoluciones / notas de crédito ---
 // En Clover un refund es un objeto SEPARADO (endpoint /refunds), con su propio id.
 // HIOPOS estampa ESE id de refund en la nota de crédito (refPasarela), así que el
