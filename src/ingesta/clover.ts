@@ -22,6 +22,7 @@ interface CloverPayment {
   result?: string // SUCCESS / FAIL / ...
   note?: string
   device?: { id?: string }
+  order?: { id?: string } // id de la ORDEN (HIOPOS a veces estampa ESTE, no el payment id)
   tender?: { label?: string; labelKey?: string }
   cardTransaction?: { last4?: string; cardType?: string; authCode?: string }
 }
@@ -45,7 +46,10 @@ function normalizar(p: CloverPayment, merchantId: string): TransaccionNormalizad
     idExterno: p.id,
     importeBruto: ((p.amount ?? 0) / 100).toFixed(2),
     cuotas: 1, // Clover no trae cuotas en el pago; default 1
-    externalReference: p.externalPaymentId ?? null,
+    // Guardamos el id de la ORDEN como referencia alterna: HIOPOS a veces estampa
+    // el order id (no el payment id) en "Datos Transacción", y el match por id lo
+    // contempla además del idExterno (ver indexarTransacciones).
+    externalReference: p.order?.id ?? null,
     codAutorizacion: p.cardTransaction?.authCode ?? authDeNote(p.note),
     terminal: merchantId, // un MID = un comercio/tienda → ancla para el scope por establecimiento
     marca,

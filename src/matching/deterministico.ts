@@ -24,6 +24,10 @@ export function indexarTransacciones(transacciones: TransaccionMatch[]): IndiceD
   const porTicket = new Map<string, TransaccionMatch[]>()
   for (const t of transacciones) {
     if (t.idExterno) agregar(porIdExterno, t.idExterno, t)
+    // Clover guarda el order id en externalReference: HIOPOS a veces estampa el
+    // order id en vez del payment id, así que lo indexamos también como clave de
+    // pago para que el cruce determinístico global lo encuentre.
+    if (t.externalReference) agregar(porIdExterno, t.externalReference, t)
     if (t.codAutorizacion) agregar(porCodAutorizacion, t.codAutorizacion, t)
     if (t.externalReference) agregar(porTicket, t.externalReference, t)
   }
