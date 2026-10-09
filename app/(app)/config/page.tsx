@@ -937,7 +937,6 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
     }
     return s
   }
-  const termsForm = establecimientos.find((e) => e.id === establecimientoId)?.terminales ?? []
 
   return (
     <div className="pc-panel p-5">
@@ -1099,40 +1098,6 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
             />
           )}
 
-          {proveedor === 'CLOVER' && modo === 'API' && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={probarConexion}
-                disabled={probando}
-                className="rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
-                style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
-              >
-                {probando ? 'Probando…' : '🔌 Probar conexión / ver dispositivos'}
-              </button>
-              {comercio && (
-                <div className="mt-2 rounded-lg border p-2.5 text-[11px]" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
-                  <div className="mb-1">
-                    <span style={{ color: 'var(--muted)' }}>Comercio:</span> <span className="font-semibold">{comercio.nombre}</span>
-                  </div>
-                  <div className="mb-1" style={{ color: 'var(--muted)' }}>Dispositivos ({comercio.dispositivos.length}):</div>
-                  {comercio.dispositivos.length === 0 ? (
-                    <div style={{ color: 'var(--muted)' }}>— (el token no tiene permiso de dispositivos, o el comercio no tiene)</div>
-                  ) : (
-                    <ul className="space-y-0.5">
-                      {comercio.dispositivos.map((d) => (
-                        <li key={d.id} className="font-mono">
-                          {d.nombre ? `${d.nombre} · ` : ''}
-                          {d.modelo ?? '—'} · serial {d.serial ?? '—'} · <span style={{ color: 'var(--muted2)' }}>id {d.id}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Medios de pago de HIOPOS que mapean a esta pasarela (multi-selección) */}
           <div className="mt-3">
             <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
@@ -1169,56 +1134,57 @@ function PasarelasCliente({ tenant, onError, onClose }: { tenant: string; onErro
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
-              Concilia contra:
-            </span>
-            <select
-              value={establecimientoId}
-              onChange={(e) => {
-                setEstablecimientoId(e.target.value)
-                if (!e.target.value) setTerminal('')
-              }}
-              className="pc-input px-2 py-1.5 text-[11px]"
-            >
-              <option value="">Todo (sin mapear)</option>
-              {establecimientos.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.codTienda ? `${e.codTienda} · ` : ''}
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-            <select
-              value={terminal}
-              onChange={(e) => setTerminal(e.target.value)}
-              disabled={!establecimientoId || termsForm.length === 0}
-              className="pc-input px-2 py-1.5 text-[11px] disabled:opacity-40"
-              style={{ width: 170 }}
-              title={establecimientoId && termsForm.length === 0 ? 'Esta tienda todavía no tiene terminales cargadas' : undefined}
-            >
-              <option value="">(toda la tienda)</option>
-              {termsForm.map((t) => (
-                <option key={t.cod} value={t.cod}>
-                  {t.alias ? `${t.alias} (${t.cod})` : t.cod}
-                </option>
-              ))}
-            </select>
-            <div className="ml-auto flex items-center gap-2">
+          {proveedor === 'CLOVER' && modo === 'API' && (
+            <div className="mt-3">
               <button
-                onClick={() => {
-                  setFormOpen(false)
-                  setEditId(null)
-                }}
-                className="rounded-md border px-3 py-1.5 text-[11px] font-semibold"
-                style={{ borderColor: 'var(--border2)', color: 'var(--muted2)' }}
+                type="button"
+                onClick={probarConexion}
+                disabled={probando}
+                className="rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
+                style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
               >
-                Cerrar
+                {probando ? 'Probando…' : '🔌 Probar conexión / ver dispositivos'}
               </button>
-              <button onClick={guardar} disabled={guardando} className="pc-btn px-3 py-1.5 text-[11px]">
-                {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Crear cuenta'}
-              </button>
+              {comercio && (
+                <div className="mt-2 rounded-lg border p-2.5 text-[11px]" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
+                  <div className="mb-1">
+                    <span style={{ color: 'var(--muted)' }}>Comercio:</span> <span className="font-semibold">{comercio.nombre}</span> ·{' '}
+                    <span style={{ color: 'var(--muted)' }}>{comercio.dispositivos.length} dispositivos</span>
+                  </div>
+                  {comercio.dispositivos.length === 0 ? (
+                    <div style={{ color: 'var(--muted)' }}>— (el token no tiene permiso de dispositivos, o el comercio no tiene)</div>
+                  ) : (
+                    <ul className="max-h-28 space-y-0.5 overflow-auto">
+                      {comercio.dispositivos.map((d) => (
+                        <li key={d.id} className="font-mono">
+                          {d.nombre ? `${d.nombre} · ` : ''}
+                          {d.modelo ?? '—'} · {d.serial ?? '—'}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>
+                    Para mapear cada dispositivo a tienda/terminal, usá el botón “Dispositivos” en la fila de la cuenta.
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                setFormOpen(false)
+                setEditId(null)
+              }}
+              className="rounded-md border px-3 py-1.5 text-[11px] font-semibold"
+              style={{ borderColor: 'var(--border2)', color: 'var(--muted2)' }}
+            >
+              Cerrar
+            </button>
+            <button onClick={guardar} disabled={guardando} className="pc-btn px-3 py-1.5 text-[11px]">
+              {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Crear cuenta'}
+            </button>
           </div>
         </div>
       )}
