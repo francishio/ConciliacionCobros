@@ -13,6 +13,11 @@ export interface ParametrosFuzzy {
   ventanaMin: number
 }
 
+// Cuando quedan varios candidatos del MISMO importe dentro de la ventana (ej. dos
+// QR de $146.000), desempatamos por el MÁS CERCANO EN TIEMPO si está dentro de
+// esta ventana chica. Resuelve "conciliar por horario + monto" sin clave de pago.
+const VENTANA_DESEMPATE_MIN = 15
+
 export type ResultadoFuzzy =
   | { tipo: 'match'; transaccion: TransaccionMatch; score: number }
   | { tipo: 'ambiguo'; candidatos: number }
@@ -72,5 +77,14 @@ export function matchFuzzy(
   }
 
   if (cands.length === 1) return { tipo: 'match', transaccion: cands[0], score: puntuar(cobro, cands[0]) }
+
+  // Varios del mismo importe: elegimos el más cercano en tiempo. Si ese más
+  // cercano está dentro de la ventana de desempate, lo damos por match (score más
+  // bajo, menor confianza); `usadas` asegura 1:1 en el recorrido. Si ni el más
+  // cercano está cerca en el tiempo, lo dejamos ambiguo (a revisión).
+  const dt = (t: TransaccionMatch) => Math.abs(cobro.fechaHora.getTime() - t.fechaHora.getTime())
+  const masCercano = cands.reduce((best, t) => (dt(t) < dt(best) ? t : best))
+  if (dt(masCercano) <= VENTANA_DESEMPATE_MIN * 60_000)
+    return { tipo: 'match', transaccion: masCercano, score: Math.min(puntuar(cobro, masCercano), 0.6) }
   return { tipo: 'ambiguo', candidatos: cands.length }
 }
