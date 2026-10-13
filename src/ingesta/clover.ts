@@ -124,7 +124,11 @@ function normalizarRefund(r: CloverRefund, merchantId: string): TransaccionNorma
     idExterno: r.id, // id del refund → matchea el refPasarela de la nota de crédito HIOPOS
     importeBruto: (-(r.amount ?? 0) / 100).toFixed(2), // NEGATIVO: es una devolución
     cuotas: 1,
-    externalReference: r.payment?.id ?? null, // referencia al pago original (informativo)
+    // OJO: NO guardar acá el id del pago original (r.payment.id): el matching por
+    // ID indexa externalReference, y el id del pago original colisiona con el
+    // idExterno de la VENTA → el cruce de la venta daría "ambiguo". El refund ya
+    // cruza por su propio id (idExterno). El pago original queda en `raw`.
+    externalReference: null,
     codAutorizacion: null,
     terminal: merchantId,
     deviceId: r.device?.id ?? null,

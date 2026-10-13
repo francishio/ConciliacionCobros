@@ -53,7 +53,14 @@ export function matchDeterministico(
   if (cobro.refPasarela) {
     const cands0 = (idx.porIdExterno.get(cobro.refPasarela) ?? []).filter((t) => !usadas.has(t.id))
     if (cands0.length === 1) return { tipo: 'match', transaccion: cands0[0] }
-    if (cands0.length > 1) return { tipo: 'ambiguo' }
+    if (cands0.length > 1) {
+      // Desempate: preferir la que coincide por idExterno EXACTO (el payment id
+      // real) sobre las que coinciden solo por externalReference (order id, o una
+      // devolución que referencia el pago original). Evita falsos "ambiguo".
+      const exactos = cands0.filter((t) => t.idExterno === cobro.refPasarela)
+      if (exactos.length === 1) return { tipo: 'match', transaccion: exactos[0] }
+      return { tipo: 'ambiguo' }
+    }
   }
   // 1. Por código de autorización (tarjeta)
   if (cobro.codAutorizacion) {
