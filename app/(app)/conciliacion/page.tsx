@@ -61,6 +61,7 @@ interface DetalleItem {
   montoHiopos: number | null
   estado: string
   manual: boolean
+  metodo: string | null // 'id' | 'autorizacion' | 'fuzzy' | 'manual' | 'determinístico'
   idPago: string | null
   dispositivo: string | null
   pasarela: string | null
@@ -76,6 +77,14 @@ const EST_DETALLE: Record<string, { txt: string; color: string }> = {
   EN_REVISION: { txt: 'en revisión', color: 'var(--amber)' },
   SIN_TRANSACCION: { txt: 'HIO s/CONC', color: 'var(--red)' },
   PASARELA_SIN_COBRO: { txt: 'PAS s/CONC', color: 'var(--red)' },
+}
+// Cómo se concilió (badge junto al estado): distingue la confianza del cruce.
+const METODO_DETALLE: Record<string, { txt: string; color: string }> = {
+  id: { txt: 'x ID de pago', color: 'var(--green)' },
+  autorizacion: { txt: 'x autorización', color: 'var(--green)' },
+  fuzzy: { txt: 'x hora + monto', color: 'var(--cyan)' },
+  determinístico: { txt: 'x cruce', color: 'var(--muted2)' },
+  manual: { txt: 'manual', color: 'var(--muted2)' },
 }
 
 // Traduce errores de fetch (el navegador los tira en inglés) a un mensaje claro.
@@ -644,6 +653,7 @@ export default function ConciliacionPage() {
                           const esTransLibre = it.estado === 'PASARELA_SIN_COBRO'
                           const sel = (esCobroLibre && mCobro === it.id) || (esTransLibre && mTrans === it.id)
                           const clickable = esCobroLibre || esTransLibre
+                          const esDif = it.estado === 'DIFERENCIA' // mismo cruce, montos distintos → alerta
                           return (
                             <tr
                               key={it.id}
@@ -658,8 +668,14 @@ export default function ConciliacionPage() {
                               title={clickable ? 'Tocá para seleccionar y conciliar a mano' : undefined}
                               style={{
                                 borderTop: sel ? '1px solid var(--hio)' : '1px solid var(--border)',
-                                background: sel ? 'rgba(239,125,24,0.22)' : i % 2 === 1 ? 'var(--surface2)' : 'transparent',
-                                boxShadow: sel ? 'inset 4px 0 0 var(--hio)' : undefined,
+                                background: sel
+                                  ? 'rgba(239,125,24,0.22)'
+                                  : esDif
+                                    ? 'rgba(245,158,11,0.18)'
+                                    : i % 2 === 1
+                                      ? 'var(--surface2)'
+                                      : 'transparent',
+                                boxShadow: sel ? 'inset 4px 0 0 var(--hio)' : esDif ? 'inset 4px 0 0 var(--amber)' : undefined,
                                 fontWeight: sel ? 600 : undefined,
                                 cursor: clickable ? 'pointer' : 'default',
                               }}
@@ -696,7 +712,7 @@ export default function ConciliacionPage() {
                               </td>
                               <td className="px-2 py-1 text-center">
                                 <span style={{ color: est.color, fontWeight: 600 }}>{est.txt}</span>
-                                {it.manual && (
+                                {it.manual ? (
                                   <>
                                     {' '}
                                     <span style={{ color: 'var(--muted)' }}>(manual)</span>{' '}
@@ -709,7 +725,11 @@ export default function ConciliacionPage() {
                                       anular
                                     </button>
                                   </>
-                                )}
+                                ) : it.metodo && METODO_DETALLE[it.metodo] ? (
+                                  <div className="text-[9px] font-semibold" style={{ color: METODO_DETALLE[it.metodo].color }}>
+                                    {METODO_DETALLE[it.metodo].txt}
+                                  </div>
+                                ) : null}
                               </td>
                             </tr>
                           )

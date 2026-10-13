@@ -80,6 +80,7 @@ export async function GET(req: Request): Promise<Response> {
       montoHiopos: null,
       estado: 'PASARELA_SIN_COBRO',
       manual: false,
+      metodo: null as string | null,
       idPago: t.idExterno, // clave de cruce, del lado pasarela
       dispositivo: dispOf(t.deviceId, t.terminal), // nombre del dispositivo (o MID de fallback)
       pasarela: t.proveedor,
@@ -116,7 +117,7 @@ export async function GET(req: Request): Promise<Response> {
           matches: {
             select: {
               tipo: true,
-              transaccion: { select: { proveedor: true, idExterno: true, importeBruto: true, codAutorizacion: true, terminal: true, deviceId: true, fechaHora: true } },
+              transaccion: { select: { proveedor: true, idExterno: true, externalReference: true, importeBruto: true, codAutorizacion: true, terminal: true, deviceId: true, fechaHora: true } },
             },
           },
         },
@@ -131,7 +132,18 @@ export async function GET(req: Request): Promise<Response> {
 
     const items = [
       ...cobros.map((c) => {
-        const t = c.matches[0]?.transaccion ?? null
+        const m = c.matches[0]
+        const t = m?.transaccion ?? null
+        // Cómo se concilió: por ID de pago, por autorización, por horario+monto
+        // (fuzzy) o manual. Sirve para distinguir la confianza del cruce.
+        let metodo: 'id' | 'autorizacion' | 'fuzzy' | 'manual' | 'determinístico' | null = null
+        if (t) {
+          if (m.tipo === 'MANUAL') metodo = 'manual'
+          else if (m.tipo === 'FUZZY') metodo = 'fuzzy'
+          else if (c.refPasarela && (c.refPasarela === t.idExterno || c.refPasarela === t.externalReference)) metodo = 'id'
+          else if (c.codAutorizacion && t.codAutorizacion && c.codAutorizacion === t.codAutorizacion) metodo = 'autorizacion'
+          else metodo = 'determinístico'
+        }
         return {
           id: c.id,
           fechaHiopos: c.fechaHora as Date | null,
@@ -142,7 +154,8 @@ export async function GET(req: Request): Promise<Response> {
           ultimos4: c.ultimos4,
           montoHiopos: Number(c.importe),
           estado: ESTADO[c.estadoOp] ?? c.estadoOp,
-          manual: c.matches[0]?.tipo === 'MANUAL',
+          manual: m?.tipo === 'MANUAL',
+          metodo,
           // ID de pago: el que estampó HIOPOS (= el de la pasarela cuando concilió).
           idPago: c.refPasarela ?? (t ? t.idExterno : null),
           dispositivo: t ? dispOf(t.deviceId, t.terminal) : null,
