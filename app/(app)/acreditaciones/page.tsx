@@ -29,7 +29,7 @@ const mesLabel = (p: string) => {
   return `${MESES[m - 1]} ${y}`
 }
 const moneda = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
-const TIPO_LABEL: Record<string, string> = { DEBITO: 'Débito', CREDITO: 'Crédito', QR: 'QR / billeteras', OTRO: 'Otro' }
+const TIPO_LABEL: Record<string, string> = { DEBITO: 'Débito', CREDITO: 'Crédito', QR: 'QR / billeteras', PREPAGA: 'Prepaga', OTRO: 'Otro', DEVOLUCION: 'Devolución' }
 const fmtFecha = (s: string) => {
   const [y, m, d] = s.split('-')
   return `${d}/${m}/${y}`

@@ -3,6 +3,7 @@
 // liquidación (plazo + comisión por tipo de cobro) para estimar CUÁNDO y CUÁNTO
 // NETO se acredita al banco.
 import { adminDb } from '../db/admin'
+import { clasificarTipoCobro } from './tipo-cobro'
 
 export interface DiaAcreditacion {
   fecha: string // YYYY-MM-DD (fecha estimada de acreditación, AR)
@@ -26,17 +27,6 @@ export interface Proyeccion {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
-
-// Clasifica una transacción de la pasarela en su tipo de cobro, usando los datos
-// de la propia pasarela (tender/nota de Clover + débito/crédito).
-function tipoDe(raw: unknown, tipoTarjeta: string | null): string {
-  const r = (raw ?? {}) as { tender?: { label?: string; labelKey?: string }; note?: string }
-  const txt = `${r.tender?.labelKey ?? ''} ${r.tender?.label ?? ''} ${r.note ?? ''}`.toLowerCase()
-  if (/\bqr\b|modo|billetera|wallet|transfer/.test(txt)) return 'QR'
-  if (tipoTarjeta === 'DEBITO') return 'DEBITO'
-  if (tipoTarjeta === 'CREDITO') return 'CREDITO'
-  return 'OTRO'
-}
 
 // Fecha AR (YYYY-MM-DD) + N días (corridos o hábiles). Sin feriados.
 function sumarDias(fechaHora: Date, dias: number, habiles: boolean): string {
@@ -76,7 +66,7 @@ export async function proyectarAcreditaciones(tenantId: string, periodo: string)
 
   for (const t of trans) {
     const bruto = Number(t.importeBruto)
-    const tipo = tipoDe(t.raw, t.tipoTarjeta as string | null)
+    const tipo = clasificarTipoCobro(t.raw, t.tipoTarjeta as string | null, bruto)
     const regla = reglaDe.get(`${t.proveedor}|${tipo}`)
     if (!regla) sinRegla++
 

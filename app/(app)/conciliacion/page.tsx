@@ -6,6 +6,7 @@
 // abre el detalle por transacción en la misma pantalla.
 import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/components/useSesion'
+import { TIPO_COBRO_LABEL } from '@/src/acreditaciones/tipo-cobro'
 
 interface Terminal {
   codTerminal: string
@@ -65,6 +66,7 @@ interface DetalleItem {
   idPago: string | null
   dispositivo: string | null
   pasarela: string | null
+  tipoCobro: string | null
   montoPasarela: number | null
 }
 // Colores por grupo de columnas del detalle: común (gris), HIO (bordeaux), pasarela (azul).
@@ -574,7 +576,7 @@ export default function ConciliacionPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="pc-tabla w-full whitespace-nowrap text-[11px]" style={{ minWidth: 900 }}>
+                  <table className="pc-tabla w-full whitespace-nowrap text-[11px]" style={{ minWidth: 1000 }}>
                     <thead>
                       <tr className="text-center text-[9px] font-semibold uppercase tracking-wide text-white">
                         <th className="px-2.5 py-2" style={{ background: '#64748b' }}>ID de pago</th>
@@ -585,6 +587,7 @@ export default function ConciliacionPage() {
                         <th className="px-2.5 py-2" style={{ background: COL_HIO }}>$ HIO</th>
                         <th className="px-2.5 py-2" style={{ background: COL_PAS }}>Fecha PAS</th>
                         <th className="px-2.5 py-2" style={{ background: COL_PAS }}>Pasarela</th>
+                        <th className="px-2.5 py-2" style={{ background: COL_PAS }}>Tipo</th>
                         <th className="px-2.5 py-2" style={{ background: COL_PAS }}>Dispositivo</th>
                         <th className="px-2.5 py-2" style={{ background: COL_PAS }}>$ PAS</th>
                         <th className="px-2.5 py-2" style={{ background: '#64748b' }}>Estado</th>
@@ -605,6 +608,9 @@ export default function ConciliacionPage() {
                         <td className="px-1.5 py-1.5"></td>
                         <td className="px-1.5 py-1.5">
                           <input value={detF.pasarela ?? ''} onChange={(e) => setDetF({ ...detF, pasarela: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
+                        </td>
+                        <td className="px-1.5 py-1.5">
+                          <input value={detF.tipo ?? ''} onChange={(e) => setDetF({ ...detF, tipo: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
                         </td>
                         <td className="px-1.5 py-1.5">
                           <input value={detF.dispositivo ?? ''} onChange={(e) => setDetF({ ...detF, dispositivo: e.target.value })} placeholder="filtrar" className="pc-input w-full px-1.5 py-1 text-[10px]" />
@@ -636,13 +642,14 @@ export default function ConciliacionPage() {
                           if (detF.medio && !inc(it.medioPago, detF.medio)) return false
                           if (detF.dispositivo && !inc(it.dispositivo, detF.dispositivo)) return false
                           if (detF.pasarela && !inc(it.pasarela, detF.pasarela)) return false
+                          if (detF.tipo && !inc(it.tipoCobro ? TIPO_COBRO_LABEL[it.tipoCobro] ?? it.tipoCobro : '', detF.tipo)) return false
                           if (detF.estado && it.estado !== detF.estado) return false
                           return true
                         })
                         if (lista.length === 0)
                           return (
                             <tr>
-                              <td colSpan={10} className="py-5 text-center" style={{ color: 'var(--muted)' }}>
+                              <td colSpan={12} className="py-5 text-center" style={{ color: 'var(--muted)' }}>
                                 {detSoloNo ? 'Nada pendiente en esta tienda.' : 'Sin transacciones.'}
                               </td>
                             </tr>
@@ -703,6 +710,9 @@ export default function ConciliacionPage() {
                               </td>
                               <td className="px-2 py-1 text-center font-semibold" style={{ color: COL_PAS }}>
                                 {it.pasarela ?? '—'}
+                              </td>
+                              <td className="px-2 py-1 text-center" style={{ color: COL_PAS }}>
+                                {it.tipoCobro ? TIPO_COBRO_LABEL[it.tipoCobro] ?? it.tipoCobro : '—'}
                               </td>
                               <td className="px-2 py-1 text-center font-mono" style={{ color: COL_PAS }}>
                                 {it.dispositivo ?? '—'}

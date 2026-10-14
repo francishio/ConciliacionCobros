@@ -5,11 +5,10 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { sesionActual, resolverTenant } from '@/src/auth/session'
+import { TIPOS_COBRO } from '@/src/acreditaciones/tipo-cobro'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-const TIPOS_COBRO = ['DEBITO', 'CREDITO', 'QR', 'OTRO'] as const
 
 async function guard(tenantParam: string | null | undefined) {
   const s = await sesionActual()

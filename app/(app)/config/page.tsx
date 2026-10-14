@@ -789,6 +789,8 @@ const TIPO_COBRO_LABEL: Record<string, string> = {
   DEBITO: 'Débito',
   CREDITO: 'Crédito',
   QR: 'QR / billeteras',
+  PREPAGA: 'Prepaga',
+  DEVOLUCION: 'Devolución',
   OTRO: 'Otro',
 }
 

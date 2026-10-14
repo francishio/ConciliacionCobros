@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
 import { resolverTenant } from '@/src/auth/session'
+import { clasificarTipoCobro } from '@/src/acreditaciones/tipo-cobro'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,8 @@ const SEL_TRANS = {
   ultimos4: true,
   terminal: true,
   deviceId: true,
+  tipoTarjeta: true,
+  raw: true,
 } as const
 
 interface TransSel {
@@ -40,6 +43,8 @@ interface TransSel {
   ultimos4: string | null
   terminal: string | null
   deviceId: string | null
+  tipoTarjeta: string | null
+  raw: unknown
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -84,6 +89,7 @@ export async function GET(req: Request): Promise<Response> {
       idPago: t.idExterno, // clave de cruce, del lado pasarela
       dispositivo: dispOf(t.deviceId, t.terminal), // nombre del dispositivo (o MID de fallback)
       pasarela: t.proveedor,
+      tipoCobro: clasificarTipoCobro(t.raw, t.tipoTarjeta, Number(t.importeBruto)),
       montoPasarela: Number(t.importeBruto),
     })
 
@@ -117,7 +123,7 @@ export async function GET(req: Request): Promise<Response> {
           matches: {
             select: {
               tipo: true,
-              transaccion: { select: { proveedor: true, idExterno: true, externalReference: true, importeBruto: true, codAutorizacion: true, terminal: true, deviceId: true, fechaHora: true } },
+              transaccion: { select: { proveedor: true, idExterno: true, externalReference: true, importeBruto: true, codAutorizacion: true, terminal: true, deviceId: true, fechaHora: true, tipoTarjeta: true, raw: true } },
             },
           },
         },
@@ -160,6 +166,7 @@ export async function GET(req: Request): Promise<Response> {
           idPago: c.refPasarela ?? (t ? t.idExterno : null),
           dispositivo: t ? dispOf(t.deviceId, t.terminal) : null,
           pasarela: t ? t.proveedor : null,
+          tipoCobro: t ? clasificarTipoCobro(t.raw, t.tipoTarjeta, Number(t.importeBruto)) : null,
           montoPasarela: t ? Number(t.importeBruto) : null,
         }
       }),
