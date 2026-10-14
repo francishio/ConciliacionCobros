@@ -15,6 +15,7 @@ const nav: Grupo[] = [
       { label: 'Pasarelas', href: '/pasarelas' },
       { label: 'Clientes', href: '/config' },
       { label: 'Conc HIO-PAS', href: '/conciliacion' },
+      { label: 'Acreditaciones', href: '/acreditaciones' },
       { label: 'Sugerencias', href: '/sugerencias' },
     ],
   },
@@ -22,6 +23,7 @@ const nav: Grupo[] = [
     rolVisible: 'CLIENTE',
     items: [
       { label: 'Conc HIO-PAS', href: '/conciliacion' },
+      { label: 'Acreditaciones', href: '/acreditaciones' },
       { label: 'Sugerencias', href: '/sugerencias' },
     ],
   },
