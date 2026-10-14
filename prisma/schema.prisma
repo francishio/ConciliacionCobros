@@ -181,6 +181,7 @@ model Tenant {
   mapeosPasarela    MapeoEstablecimientoPasarela[]
   cuentasPasarela   CuentaPasarela[]
   dispositivosPasarela DispositivoPasarela[]
+  reglasLiquidacion ReglaLiquidacion[]
   matchingProfile   MatchingProfile?
   configHiopos      ConfigHiopos?
   usuarios          Usuario[]
@@ -303,6 +304,27 @@ model DispositivoPasarela {
   @@index([tenantId])
   @@index([establecimientoId])
   @@map("dispositivo_pasarela")
+}
+
+// Reglas de liquidación/acreditación por cliente, pasarela y tipo de cobro.
+// Sirven para PROYECTAR cuándo y cuánto neto se acredita (flujo de caja), sobre
+// las ventas ya sincronizadas. Más adelante se concilia contra la liquidación real.
+model ReglaLiquidacion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  proveedor     String // pasarela (CLOVER, MERCADOPAGO, PAYWAY…)
+  tipoCobro     String // CREDITO, DEBITO, QR, OTRO
+  plazoDias     Int      @default(0) // días hasta la acreditación
+  habiles       Boolean  @default(false) // plazo en días hábiles (si no, corridos)
+  comisionPct   Decimal  @default(0) @db.Decimal(6, 3) // % de comisión/arancel
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, proveedor, tipoCobro])
+  @@index([tenantId])
+  @@map("regla_liquidacion")
 }
 
 // Mapea cada medio de pago de HIOPOS a la conciliación (proveedor) a la que
