@@ -1,16 +1,19 @@
 'use client'
 
-// Flujo de acreditaciones: proyección de cuándo y cuánto neto se acredita al
-// banco, sobre las ventas del mes, según las reglas de liquidación del cliente.
+// Flujo de acreditaciones: proyección SEMANAL (semanas en columnas, tipo de cobro
+// en filas) de cuánto neto se acredita al banco, según las reglas de liquidación.
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/components/useSesion'
+import { TIPO_COBRO_LABEL } from '@/src/acreditaciones/tipo-cobro'
 
-interface DiaAcred { fecha: string; n: number; bruto: number; comision: number; neto: number }
-interface TipoAcred { tipo: string; n: number; bruto: number; comision: number; neto: number }
+interface Celda { n: number; bruto: number; comision: number; neto: number }
+interface Semana { inicio: string; fin: string; label: string }
+interface FilaTipo { tipo: string; total: Celda; porSemana: Record<string, Celda> }
 interface Proyeccion {
-  porDia: DiaAcred[]
-  porTipo: TipoAcred[]
-  totales: { n: number; bruto: number; comision: number; neto: number }
+  semanas: Semana[]
+  filas: FilaTipo[]
+  totalPorSemana: Record<string, Celda>
+  total: Celda
   sinRegla: number
 }
 
@@ -29,11 +32,6 @@ const mesLabel = (p: string) => {
   return `${MESES[m - 1]} ${y}`
 }
 const moneda = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
-const TIPO_LABEL: Record<string, string> = { DEBITO: 'Débito', CREDITO: 'Crédito', QR: 'QR / billeteras', PREPAGA: 'Prepaga', OTRO: 'Otro', DEVOLUCION: 'Devolución' }
-const fmtFecha = (s: string) => {
-  const [y, m, d] = s.split('-')
-  return `${d}/${m}/${y}`
-}
 
 export default function AcreditacionesPage() {
   const sesion = useSesion()
@@ -77,9 +75,11 @@ export default function AcreditacionesPage() {
       .finally(() => setCargando(false))
   }, [tenant, periodo])
 
-  const t = proy?.totales
+  const t = proy?.total
+  const celda = (n: number) => (n === 0 ? <span style={{ color: 'var(--muted)' }}>—</span> : moneda(n))
+
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       <div className="pc-panel mb-4 flex flex-wrap items-center gap-2 p-3">
         {!esCliente && (
           <select value={tenant} onChange={(e) => setTenant(e.target.value)} className="pc-input px-2 py-1.5 text-[12px]" style={{ minWidth: 150 }}>
@@ -94,7 +94,7 @@ export default function AcreditacionesPage() {
           <span className="min-w-[72px] text-center text-[12.5px] font-semibold">{mesLabel(periodo)}</span>
           <button onClick={() => setPeriodo(mover(periodo, 1))} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>▶</button>
         </div>
-        <div className="ml-auto text-[11px]" style={{ color: 'var(--muted)' }}>Proyección sobre las ventas del mes</div>
+        <div className="ml-auto text-[11px]" style={{ color: 'var(--muted)' }}>Acreditaciones (neto) por semana · ventas del mes</div>
       </div>
 
       {error && <div className="pc-error mb-4 px-4 py-2.5 text-[12px]">{error}</div>}
@@ -106,7 +106,7 @@ export default function AcreditacionesPage() {
       ) : proy && t ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Kpi label="Ventas" valor={String(t.n)} />
+            <Kpi label="Operaciones" valor={String(t.n)} />
             <Kpi label="Bruto" valor={moneda(t.bruto)} />
             <Kpi label="Comisión" valor={moneda(t.comision)} color="var(--red)" />
             <Kpi label="Neto a acreditar" valor={moneda(t.neto)} color="var(--green)" />
@@ -114,74 +114,58 @@ export default function AcreditacionesPage() {
 
           {proy.sinRegla > 0 && (
             <div className="pc-error mb-4 px-4 py-2 text-[12px]">
-              ⚠ {proy.sinRegla} venta(s) sin regla de liquidación cargada (se proyectan con plazo 0 y comisión 0). Cargá las reglas en Clientes → Pasarelas → 💲 Reglas de liquidación.
+              ⚠ {proy.sinRegla} operación(es) sin regla de liquidación cargada (se proyectan con comisión 0). Cargá las reglas en Clientes → Pasarelas → 💲 Reglas de liquidación.
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="pc-panel overflow-hidden">
-              <div className="border-b px-4 py-2 text-[12px] font-semibold" style={{ borderColor: 'var(--border)' }}>Flujo por fecha de acreditación</div>
-              <div className="overflow-x-auto">
-                <table className="pc-tabla w-full text-[11.5px]">
-                  <thead>
-                    <tr className="pc-thead text-[9px] uppercase tracking-wide">
-                      <th className="px-2.5 py-2 text-left">Fecha</th>
-                      <th className="px-2.5 py-2 text-center">Ventas</th>
-                      <th className="px-2.5 py-2 text-right">Bruto</th>
-                      <th className="px-2.5 py-2 text-right">Neto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proy.porDia.length === 0 && (
-                      <tr><td colSpan={4} className="px-2.5 py-5 text-center" style={{ color: 'var(--muted)' }}>Sin ventas en el mes.</td></tr>
-                    )}
-                    {proy.porDia.map((d, i) => (
-                      <tr key={d.fecha} style={{ borderTop: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                        <td className="px-2.5 py-1.5 font-semibold">{fmtFecha(d.fecha)}</td>
-                        <td className="px-2.5 py-1.5 text-center">{d.n}</td>
-                        <td className="px-2.5 py-1.5 text-right font-mono" style={{ color: 'var(--muted2)' }}>{moneda(d.bruto)}</td>
-                        <td className="px-2.5 py-1.5 text-right font-mono font-semibold" style={{ color: 'var(--green)' }}>{moneda(d.neto)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <div className="pc-panel overflow-hidden">
+            <div className="border-b px-4 py-2 text-[12px] font-semibold" style={{ borderColor: 'var(--border)' }}>
+              Neto a acreditar por semana
             </div>
-
-            <div className="pc-panel overflow-hidden">
-              <div className="border-b px-4 py-2 text-[12px] font-semibold" style={{ borderColor: 'var(--border)' }}>Por tipo de cobro</div>
-              <div className="overflow-x-auto">
-                <table className="pc-tabla w-full text-[11.5px]">
-                  <thead>
-                    <tr className="pc-thead text-[9px] uppercase tracking-wide">
-                      <th className="px-2.5 py-2 text-left">Tipo</th>
-                      <th className="px-2.5 py-2 text-center">Ventas</th>
-                      <th className="px-2.5 py-2 text-right">Bruto</th>
-                      <th className="px-2.5 py-2 text-right">Comisión</th>
-                      <th className="px-2.5 py-2 text-right">Neto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proy.porTipo.length === 0 && (
-                      <tr><td colSpan={5} className="px-2.5 py-5 text-center" style={{ color: 'var(--muted)' }}>—</td></tr>
-                    )}
-                    {proy.porTipo.map((x, i) => (
-                      <tr key={x.tipo} style={{ borderTop: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                        <td className="px-2.5 py-1.5 font-semibold">{TIPO_LABEL[x.tipo] ?? x.tipo}</td>
-                        <td className="px-2.5 py-1.5 text-center">{x.n}</td>
-                        <td className="px-2.5 py-1.5 text-right font-mono" style={{ color: 'var(--muted2)' }}>{moneda(x.bruto)}</td>
-                        <td className="px-2.5 py-1.5 text-right font-mono" style={{ color: 'var(--red)' }}>{moneda(x.comision)}</td>
-                        <td className="px-2.5 py-1.5 text-right font-mono font-semibold" style={{ color: 'var(--green)' }}>{moneda(x.neto)}</td>
-                      </tr>
+            <div className="overflow-x-auto">
+              <table className="pc-tabla w-full whitespace-nowrap text-[11.5px]">
+                <thead>
+                  <tr className="pc-thead text-[9px] uppercase tracking-wide">
+                    <th className="px-2.5 py-2 text-left">Tipo de cobro</th>
+                    {proy.semanas.map((s) => (
+                      <th key={s.inicio} className="px-2.5 py-2 text-right" title={`${s.inicio} al ${s.fin}`}>{s.label}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                    <th className="px-2.5 py-2 text-right" style={{ color: 'var(--hio)' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proy.filas.length === 0 && (
+                    <tr><td colSpan={proy.semanas.length + 2} className="px-2.5 py-5 text-center" style={{ color: 'var(--muted)' }}>Sin operaciones en el mes.</td></tr>
+                  )}
+                  {proy.filas.map((f, i) => (
+                    <tr key={f.tipo} style={{ borderTop: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                      <td className="px-2.5 py-1.5 font-semibold">{TIPO_COBRO_LABEL[f.tipo] ?? f.tipo}</td>
+                      {proy.semanas.map((s) => (
+                        <td key={s.inicio} className="px-2.5 py-1.5 text-right font-mono" style={{ color: 'var(--muted2)' }}>
+                          {celda(f.porSemana[s.inicio]?.neto ?? 0)}
+                        </td>
+                      ))}
+                      <td className="px-2.5 py-1.5 text-right font-mono font-semibold" style={{ color: 'var(--green)' }}>{moneda(f.total.neto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {proy.filas.length > 0 && (
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface2)' }}>
+                      <td className="px-2.5 py-2 font-bold">Total</td>
+                      {proy.semanas.map((s) => (
+                        <td key={s.inicio} className="px-2.5 py-2 text-right font-mono font-bold">{celda(proy.totalPorSemana[s.inicio]?.neto ?? 0)}</td>
+                      ))}
+                      <td className="px-2.5 py-2 text-right font-mono font-bold" style={{ color: 'var(--green)' }}>{moneda(t.neto)}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
             </div>
           </div>
 
           <div className="mt-3 text-[10.5px]" style={{ color: 'var(--muted)' }}>
-            Proyección estimada según las reglas cargadas (plazo + comisión por tipo). No contempla feriados ni retenciones impositivas. Se concilia contra la liquidación real cuando se cargue.
+            Semanas de lunes a domingo, por fecha estimada de acreditación. Proyección según las reglas (plazo + comisión por tipo). No contempla feriados ni retenciones impositivas.
           </div>
         </>
       ) : null}
