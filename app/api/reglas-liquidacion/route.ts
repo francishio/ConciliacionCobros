@@ -10,9 +10,11 @@ import { TIPOS_COBRO } from '@/src/acreditaciones/tipo-cobro'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// El cliente puede configurar SUS reglas (resolverTenant lo scopea a su tenant;
+// ignora el parámetro). El super admin opera por ?tenant.
 async function guard(tenantParam: string | null | undefined) {
   const s = await sesionActual()
-  if (s?.rol !== 'SUPERADMIN') return { error: 'Requiere super admin.', status: 403 as const }
+  if (!s) return { error: 'No autenticado.', status: 401 as const }
   const ctx = await resolverTenant(tenantParam)
   if (!ctx) return { error: 'No se pudo resolver el cliente.', status: 400 as const }
   return { ctx }

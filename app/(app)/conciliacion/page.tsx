@@ -410,7 +410,7 @@ export default function ConciliacionPage() {
           )}
         </div>
 
-        {tenant && (
+        {tenant && !esCliente && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <button onClick={() => sincronizar('hiopos', 'Ventas HIOPOS')} disabled={!!sincro} className="pc-btn px-3 py-1.5 text-[11px] disabled:opacity-50">
               {sincro === 'hiopos' ? 'Trayendo…' : '↻ Ventas HIOPOS'}
@@ -540,7 +540,7 @@ export default function ConciliacionPage() {
                   </button>
                 </div>
               </div>
-              {mCobro || mTrans ? (
+              {!esCliente && (mCobro || mTrans ? (
                 <div
                   className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-lg border-2 p-3 text-[12px] shadow-md"
                   style={{ borderColor: 'var(--hio)', background: 'rgba(239,125,24,0.12)' }}
@@ -569,7 +569,7 @@ export default function ConciliacionPage() {
                   💡 Conciliación manual: tocá una línea <span style={{ color: 'var(--red)', fontWeight: 600 }}>HIO s/CONC</span> o{' '}
                   <span style={{ color: 'var(--red)', fontWeight: 600 }}>PAS s/CONC</span> y después su contrapartida para cruzarlas a mano.
                 </div>
-              )}
+              ))}
               {detCargando ? (
                 <div className="py-6 text-center text-[12px]" style={{ color: 'var(--muted)' }}>
                   Cargando…
@@ -659,7 +659,7 @@ export default function ConciliacionPage() {
                           const esCobroLibre = it.estado === 'SIN_TRANSACCION'
                           const esTransLibre = it.estado === 'PASARELA_SIN_COBRO'
                           const sel = (esCobroLibre && mCobro === it.id) || (esTransLibre && mTrans === it.id)
-                          const clickable = esCobroLibre || esTransLibre
+                          const clickable = (esCobroLibre || esTransLibre) && !esCliente
                           const esDif = it.estado === 'DIFERENCIA' // mismo cruce, montos distintos → alerta
                           return (
                             <tr
@@ -726,14 +726,16 @@ export default function ConciliacionPage() {
                                   <>
                                     {' '}
                                     <span style={{ color: 'var(--muted)' }}>(manual)</span>{' '}
-                                    <button
-                                      onClick={() => anularManual(it.id)}
-                                      title="Anular este match manual"
-                                      className="text-[10px] font-semibold underline"
-                                      style={{ color: 'var(--red)' }}
-                                    >
-                                      anular
-                                    </button>
+                                    {!esCliente && (
+                                      <button
+                                        onClick={() => anularManual(it.id)}
+                                        title="Anular este match manual"
+                                        className="text-[10px] font-semibold underline"
+                                        style={{ color: 'var(--red)' }}
+                                      >
+                                        anular
+                                      </button>
+                                    )}
                                   </>
                                 ) : it.metodo && METODO_DETALLE[it.metodo] ? (
                                   <div className="text-[9px] font-semibold" style={{ color: METODO_DETALLE[it.metodo].color }}>

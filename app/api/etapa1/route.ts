@@ -3,7 +3,7 @@
 // y transacciones sin match (colas para conciliar a mano en la misma grilla).
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
-import { resolverTenant } from '@/src/auth/session'
+import { resolverTenant, sesionActual } from '@/src/auth/session'
 import { resumenMes } from '@/src/carga/resumen'
 import { reconciliarMes } from '@/src/carga/bloque'
 
@@ -85,6 +85,8 @@ const SEL_TRANS = {
 // disparan reconciliación por sí solos, ej. mapeo de terminal / pasarela).
 export async function POST(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
     if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })

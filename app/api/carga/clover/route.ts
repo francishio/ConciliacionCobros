@@ -7,7 +7,7 @@
 // se hará configurable si hace falta otra región.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
-import { resolverTenant } from '@/src/auth/session'
+import { resolverTenant, sesionActual } from '@/src/auth/session'
 import { descifrar } from '@/src/config/crypto'
 import { obtenerPagosClover, obtenerRefundsClover } from '@/src/ingesta/clover'
 import { ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
@@ -32,6 +32,8 @@ function rangoMesAr(periodo: string): { desde: Date; hasta: Date } {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
     if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })

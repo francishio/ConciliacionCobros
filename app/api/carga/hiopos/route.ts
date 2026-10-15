@@ -3,7 +3,7 @@
 // (no toca los extractos de pasarela), re-concilia y devuelve el resumen.
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
-import { resolverTenant } from '@/src/auth/session'
+import { resolverTenant, sesionActual } from '@/src/auth/session'
 import { descifrar } from '@/src/config/crypto'
 import { HioposBridgeClient } from '@/src/ingesta/hiopos/bridge'
 import { parseCobrosHiopos } from '@/src/ingesta/hiopos/cobros'
@@ -24,6 +24,8 @@ function rangoMes(periodo: string): { desde: string; hasta: string } {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
     if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })

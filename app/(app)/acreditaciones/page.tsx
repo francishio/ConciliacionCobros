@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/components/useSesion'
 import { TIPO_COBRO_LABEL } from '@/src/acreditaciones/tipo-cobro'
+import { ReglasLiquidacion } from '@/components/ReglasLiquidacion'
 
 interface Celda { n: number; bruto: number; comision: number; neto: number }
 interface Semana { inicio: string; fin: string; label: string }
@@ -42,6 +43,7 @@ export default function AcreditacionesPage() {
   const [proy, setProy] = useState<Proyeccion | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verReglas, setVerReglas] = useState(false)
 
   useEffect(() => {
     if (!sesion) return
@@ -55,24 +57,28 @@ export default function AcreditacionesPage() {
     }
   }, [sesion])
 
-  useEffect(() => {
+  async function cargar() {
     if (!tenant) {
       setProy(null)
       return
     }
     setCargando(true)
     setError(null)
-    fetch(`/api/acreditaciones?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}`)
-      .then(async (r) => {
-        const j = await r.json()
-        if (!r.ok) throw new Error(j.error ?? 'Error al cargar')
-        setProy(j.proyeccion)
-      })
-      .catch((e) => {
-        setError((e as Error).message)
-        setProy(null)
-      })
-      .finally(() => setCargando(false))
+    try {
+      const r = await fetch(`/api/acreditaciones?tenant=${encodeURIComponent(tenant)}&periodo=${periodo}`)
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? 'Error al cargar')
+      setProy(j.proyeccion)
+    } catch (e) {
+      setError((e as Error).message)
+      setProy(null)
+    } finally {
+      setCargando(false)
+    }
+  }
+  useEffect(() => {
+    cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant, periodo])
 
   const t = proy?.total
@@ -94,10 +100,28 @@ export default function AcreditacionesPage() {
           <span className="min-w-[72px] text-center text-[12.5px] font-semibold">{mesLabel(periodo)}</span>
           <button onClick={() => setPeriodo(mover(periodo, 1))} className="rounded-md border px-2 py-1 text-[12px]" style={{ borderColor: 'var(--border2)' }}>▶</button>
         </div>
-        <div className="ml-auto text-[11px]" style={{ color: 'var(--muted)' }}>Acreditaciones (neto) por semana · ventas del mes</div>
+        <button
+          onClick={() => setVerReglas((v) => !v)}
+          disabled={!tenant}
+          className="ml-auto rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
+          style={{ borderColor: 'var(--border2)', color: verReglas ? 'var(--hio)' : 'var(--muted2)' }}
+          title="Configurar los plazos de acreditación y comisiones por tipo de cobro"
+        >
+          💲 {verReglas ? 'Ocultar reglas' : 'Configurar % y plazos'}
+        </button>
       </div>
 
       {error && <div className="pc-error mb-4 px-4 py-2.5 text-[12px]">{error}</div>}
+
+      {verReglas && tenant && (
+        <div className="pc-panel mb-4 p-4">
+          <div className="mb-1 text-[12px] font-semibold">💲 Reglas de liquidación — plazos y comisiones</div>
+          <div className="mb-3 text-[10.5px]" style={{ color: 'var(--muted)' }}>
+            Por cada tipo de cobro: a cuántos días se acredita y qué comisión cobra la pasarela. Los cambios actualizan el flujo de abajo.
+          </div>
+          <ReglasLiquidacion tenant={tenant} onError={setError} onSaved={cargar} />
+        </div>
+      )}
 
       {!tenant ? (
         <div className="pc-panel p-6 text-center text-[12px]" style={{ color: 'var(--muted)' }}>Elegí un cliente para ver sus acreditaciones.</div>

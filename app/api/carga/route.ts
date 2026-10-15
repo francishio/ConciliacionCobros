@@ -5,7 +5,7 @@
 //   POST → mes + hiopos + extracto_<codigo> por pasarela
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/src/db/admin'
-import { resolverTenant } from '@/src/auth/session'
+import { resolverTenant, sesionActual } from '@/src/auth/session'
 import { parseCobrosHiopos } from '@/src/ingesta/hiopos/cobros'
 import { parseTransaccionesPayway } from '@/src/ingesta/payway'
 import { ingestarTransaccionesBulk } from '@/src/ingesta/persistir'
@@ -85,6 +85,8 @@ export async function GET(req: Request): Promise<Response> {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const form = await req.formData()
     const periodo = String(form.get('periodo') || '').trim()
     if (!/^\d{4}-\d{2}$/.test(periodo))

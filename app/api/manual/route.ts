@@ -4,7 +4,7 @@
 //
 // El tenant sale de la sesión (CLIENTE → el suyo; SUPERADMIN → ?tenant=).
 import { NextResponse } from 'next/server'
-import { resolverTenant } from '@/src/auth/session'
+import { resolverTenant, sesionActual } from '@/src/auth/session'
 import { listarNoConciliados, confirmarMatchManual, anularMatchManual } from '@/src/matching/manual'
 
 export const runtime = 'nodejs'
@@ -48,6 +48,8 @@ export async function GET(req: Request): Promise<Response> {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const body = (await req.json()) as { tenant?: string; cobroId?: string; transaccionId?: string }
     if (!body.cobroId || !body.transaccionId)
       return NextResponse.json({ error: 'Faltan cobroId y/o transaccionId.' }, { status: 400 })
@@ -65,6 +67,8 @@ export async function POST(req: Request): Promise<Response> {
 // Anula un match manual: DELETE { tenant, cobroId }
 export async function DELETE(req: Request): Promise<Response> {
   try {
+    const s = await sesionActual()
+    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
     const body = (await req.json()) as { tenant?: string; cobroId?: string }
     if (!body.cobroId) return NextResponse.json({ error: 'Falta cobroId.' }, { status: 400 })
 
