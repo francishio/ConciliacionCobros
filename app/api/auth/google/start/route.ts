@@ -2,7 +2,7 @@
 // redirige al consentimiento de Google.
 import { NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { buildAuthUrl, googleConfigured, callbackUri } from '@/src/auth/google-oauth'
+import { buildAuthUrl, googleConfigured, callbackUri, requestOrigin } from '@/src/auth/google-oauth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,7 +17,7 @@ export async function GET(req: Request): Promise<Response> {
     return NextResponse.redirect(`https://${canonical}/api/auth/google/start`)
   }
   if (!googleConfigured()) {
-    return NextResponse.redirect(new URL('/login?error=google_config', req.url))
+    return NextResponse.redirect(new URL('/login?error=google_config', requestOrigin(req)))
   }
 
   const redirectUri = callbackUri(req)

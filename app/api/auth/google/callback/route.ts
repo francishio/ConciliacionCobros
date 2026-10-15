@@ -2,15 +2,18 @@
 // Usuario activo (lista blanca), abre la sesión propia de la app (cookie cc_sesion).
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { exchangeCode, verifyIdToken, callbackUri } from '@/src/auth/google-oauth'
+import { exchangeCode, verifyIdToken, callbackUri, requestOrigin } from '@/src/auth/google-oauth'
 import { adminDb } from '@/src/db/admin'
 import { firmarSesion, SESSION_COOKIE } from '@/src/auth/jwt'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// OJO: para los redirects usamos requestOrigin (x-forwarded-host = host real que
+// pidió el usuario), NO req.url: en Netlify req.url trae el host interno
+// (main--…), y redirigir ahí deja la cookie de sesión en otro host → login en loop.
 function fail(req: Request, code: string) {
-  const res = NextResponse.redirect(new URL(`/login?error=${code}`, req.url))
+  const res = NextResponse.redirect(new URL(`/login?error=${code}`, requestOrigin(req)))
   res.cookies.set('g_state', '', { path: '/', maxAge: 0 })
   res.cookies.set('g_nonce', '', { path: '/', maxAge: 0 })
   return res
@@ -58,7 +61,7 @@ export async function GET(req: Request): Promise<Response> {
   })
 
   const destino = u.rol === 'SUPERADMIN' ? '/pasarelas' : '/conciliacion'
-  const res = NextResponse.redirect(new URL(destino, req.url))
+  const res = NextResponse.redirect(new URL(destino, requestOrigin(req)))
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
