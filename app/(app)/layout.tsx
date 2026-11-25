@@ -11,7 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Embebido en HIOFFICE (SSO): sin sidebar ni topbar (HIOFFICE ya pone su propio
   // marco y menú). Se muestra solo el contenido a pantalla completa.
   if (s?.via === 'hio') {
-    return <div className="h-screen overflow-y-auto p-5">{children}</div>
+    return (
+      <div data-tema="hioffice" className="h-screen overflow-y-auto p-5">
+        {children}
+      </div>
+    )
   }
 
   return (

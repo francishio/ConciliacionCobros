@@ -38,7 +38,7 @@ export default function EntradaHioffice() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
       <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-8 text-center shadow-xl">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-hio-400 to-hio-600 text-xl font-bold text-white shadow-md">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#42a5f5] to-[#1976d2] text-xl font-bold text-white shadow-md">
           ⇆
         </div>
         {!error ? (
@@ -47,7 +47,7 @@ export default function EntradaHioffice() {
           <>
             <p className="text-sm font-semibold text-red-700">No se pudo entrar con la sesión de HIOFFICE</p>
             <p className="text-sm text-slate-600">{error}</p>
-            <a href="/login" className="inline-block text-sm text-hio-600 hover:underline">
+            <a href="/login" className="inline-block text-sm text-[#1976d2] hover:underline">
               Entrar con usuario y contraseña
             </a>
           </>

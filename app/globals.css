@@ -17,12 +17,42 @@
   --muted: #94a3b8; /* slate-400 */
   --muted2: #64748b; /* slate-500 */
   --hio: #ef7d18; /* naranja de marca */
+  --hio-hover: #d96c0c; /* hover del botón primario */
+  --hio-tint: rgba(239, 125, 24, 0.12); /* fondo tenue de acento */
+  --hio-tint-strong: rgba(239, 125, 24, 0.22);
+  --hio-glow: rgba(239, 125, 24, 0.12); /* halo de foco */
   --cyan: #ef7d18; /* acento → naranja */
   --purple: #d96c0c; /* acento secundario → naranja oscuro */
   --green: #16a34a;
   --amber: #d97706;
   --red: #dc2626;
   color-scheme: light;
+}
+
+/* ── Tema HIOFFICE ──
+   Cuando la app corre embebida en HIOFFICE (sesión SSO, via='hio') se repinta con
+   la paleta Material azul de HIOFFICE (icgfront) para que se vea como una pestaña
+   más del ERP. Se setea data-tema="hioffice" en el contenedor del layout embebido;
+   al estar todo tokenizado (+ clases pc-*), con reasignar los tokens alcanza. */
+[data-tema='hioffice'] {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface2: #fafafa;
+  --surface3: #f0f0f0;
+  --border: #e0e0e0;
+  --border2: #c8c8c8;
+  --text: #212121;
+  --muted: #9e9e9e;
+  --muted2: #616161;
+  --hio: #1976d2;
+  --hio-hover: #1565c0;
+  --hio-tint: rgba(25, 118, 210, 0.12);
+  --hio-tint-strong: rgba(25, 118, 210, 0.22);
+  --hio-glow: rgba(25, 118, 210, 0.14);
+  --cyan: #1976d2;
+  --purple: #1565c0;
+  background: var(--bg);
+  font-family: Roboto, var(--font-sans), system-ui, sans-serif;
 }
 
 body {
@@ -73,7 +103,7 @@ body {
   .pc-input:focus {
     outline: none;
     border-color: var(--hio);
-    box-shadow: 0 0 0 3px rgba(239, 125, 24, 0.12);
+    box-shadow: 0 0 0 3px var(--hio-glow);
   }
   /* Cabecera de tabla estilo Analytics (naranja, texto blanco) */
   .pc-thead {
@@ -104,7 +134,7 @@ body {
     font-weight: 600;
   }
   .pc-btn:hover {
-    background: #d96c0c;
+    background: var(--hio-hover);
   }
   .pc-btn:disabled {
     opacity: 0.5;

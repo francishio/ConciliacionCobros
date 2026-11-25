@@ -543,7 +543,7 @@ export default function ConciliacionPage() {
               {!esCliente && (mCobro || mTrans ? (
                 <div
                   className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-lg border-2 p-3 text-[12px] shadow-md"
-                  style={{ borderColor: 'var(--hio)', background: 'rgba(239,125,24,0.12)' }}
+                  style={{ borderColor: 'var(--hio)', background: 'var(--hio-tint)' }}
                 >
                   <span className="font-semibold" style={{ color: 'var(--text)' }}>
                     {mCobro && mTrans
@@ -676,7 +676,7 @@ export default function ConciliacionPage() {
                               style={{
                                 borderTop: sel ? '1px solid var(--hio)' : '1px solid var(--border)',
                                 background: sel
-                                  ? 'rgba(239,125,24,0.22)'
+                                  ? 'var(--hio-tint-strong)'
                                   : esDif
                                     ? 'rgba(245,158,11,0.18)'
                                     : i % 2 === 1
