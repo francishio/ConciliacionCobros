@@ -121,8 +121,9 @@ export default function ConciliacionPage() {
   const sesion = useSesion()
   const esCliente = sesion?.rol === 'CLIENTE'
   // Releer datos propios (HIOPOS/Clover) es no destructivo y queda acotado al
-  // tenant: lo puede hacer el super admin y la sesión embebida de HIOFFICE (SSO).
-  const puedeReleer = sesion?.rol === 'SUPERADMIN' || sesion?.via === 'hio'
+  // tenant: lo puede hacer cualquier sesión (super admin y también el cliente,
+  // entre por HIOFFICE o por login propio). Importar/Re-conciliar siguen solo admin.
+  const puedeReleer = !!sesion
   const [clientes, setClientes] = useState<string[]>([])
   const [tenant, setTenant] = useState('')
   const [periodo, setPeriodo] = useState(mesActual())

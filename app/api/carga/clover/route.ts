@@ -32,11 +32,11 @@ function rangoMesAr(periodo: string): { desde: Date; hasta: Date } {
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    // SUPERADMIN opera sobre cualquier cliente; la sesión de HIOFFICE (SSO) puede
-    // releer SOLO su propio cliente (resolverTenant lo acota al tenant de la sesión).
+    // Re-lectura no destructiva: la puede hacer cualquier sesión. SUPERADMIN opera
+    // sobre el cliente que indique; el CLIENTE solo sobre el suyo (resolverTenant
+    // ignora el parámetro y lo acota a su tenant).
     const s = await sesionActual()
-    if (!s || (s.rol !== 'SUPERADMIN' && s.via !== 'hio'))
-      return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
+    if (!s) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 })
     const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
     if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })
