@@ -3,6 +3,7 @@
 import { sesionActual } from '@/src/auth/session'
 import { Sidebar } from '@/components/Sidebar'
 import { UserMenu } from '@/components/UserMenu'
+import { NavEmbed } from '@/components/NavEmbed'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await sesionActual()
@@ -12,8 +13,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // marco y menú). Se muestra solo el contenido a pantalla completa.
   if (s?.via === 'hio') {
     return (
-      <div data-tema="hioffice" className="h-screen overflow-y-auto p-5">
-        {children}
+      <div data-tema="hioffice" className="flex h-screen flex-col overflow-hidden">
+        <NavEmbed />
+        <div className="flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     )
   }
