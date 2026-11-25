@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { adminDb } from '@/src/db/admin'
 import { firmarSesion, SESSION_COOKIE } from '@/src/auth/jwt'
+import { cookieSesion } from '@/src/auth/cookies'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,13 +32,7 @@ export async function POST(req: Request): Promise<Response> {
     })
 
     const res = NextResponse.json({ rol: u.rol, redirect: u.rol === 'SUPERADMIN' ? '/pasarelas' : '/conciliacion' })
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    })
+    res.cookies.set(SESSION_COOKIE, token, cookieSesion(60 * 60 * 24 * 7))
     return res
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

@@ -11,6 +11,9 @@ export interface Sesion {
   rol: 'SUPERADMIN' | 'CLIENTE'
   tenantId: string | null // null para SUPERADMIN
   tenantNombre: string | null
+  // 'hio' = la sesión se abrió embebida desde el menú de HIOFFICE (SSO). Sirve para
+  // ocultar el chrome (sidebar/topbar) adentro del iframe. undefined = login normal.
+  via?: 'hio'
 }
 
 function secreto(): Uint8Array {
@@ -37,6 +40,7 @@ export async function verificarSesion(token: string | undefined | null): Promise
       rol: payload.rol === 'SUPERADMIN' ? 'SUPERADMIN' : 'CLIENTE',
       tenantId: (payload.tenantId as string | null) ?? null,
       tenantNombre: (payload.tenantNombre as string | null) ?? null,
+      via: payload.via === 'hio' ? 'hio' : undefined,
     }
   } catch {
     return null

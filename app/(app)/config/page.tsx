@@ -14,6 +14,7 @@ interface Cliente {
   id: string
   nombre: string
   numeroBD: string | null
+  hiofficeCompanyId: string | null
   tiendas: number
   credHiopos: boolean
   apiUser: string | null
@@ -48,6 +49,7 @@ export default function AdminClientesPage() {
 
   // Datos del cliente seleccionado
   const [numeroBD, setNumeroBD] = useState('')
+  const [hiofficeCompanyId, setHiofficeCompanyId] = useState('')
   const [apiUser, setApiUser] = useState('')
   const [apiPassword, setApiPassword] = useState('')
   const [expIdVentas, setExpIdVentas] = useState('')
@@ -133,6 +135,7 @@ export default function AdminClientesPage() {
     setAviso(null)
     setPassNueva(null)
     setNumeroBD(c.numeroBD ?? '')
+    setHiofficeCompanyId(c.hiofficeCompanyId ?? '')
     setApiUser(c.apiUser ?? '')
     setExpIdVentas(c.expIdVentas ?? '')
     setTienePassword(c.credHiopos)
@@ -176,7 +179,7 @@ export default function AdminClientesPage() {
       const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tenant: sel.nombre, numeroBD, apiUser, apiPassword, expIdVentas }),
+        body: JSON.stringify({ tenant: sel.nombre, numeroBD, hiofficeCompanyId, apiUser, apiPassword, expIdVentas }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'No se pudo guardar')
@@ -451,6 +454,19 @@ export default function AdminClientesPage() {
                       value={expIdVentas}
                       onChange={(e) => setExpIdVentas(e.target.value)}
                       placeholder="ej. 1513955"
+                      className="pc-input w-full px-3 py-2 font-mono text-sm"
+                    />
+                  </Campo>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Campo
+                    label="Empresa HIOFFICE (SSO)"
+                    hint="companyId para entrar embebido desde el menú de HIOFFICE"
+                  >
+                    <input
+                      value={hiofficeCompanyId}
+                      onChange={(e) => setHiofficeCompanyId(e.target.value)}
+                      placeholder="ej. 12345"
                       className="pc-input w-full px-3 py-2 font-mono text-sm"
                     />
                   </Campo>
