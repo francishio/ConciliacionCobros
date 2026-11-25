@@ -24,8 +24,11 @@ function rangoMes(periodo: string): { desde: string; hasta: string } {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    // SUPERADMIN opera sobre cualquier cliente; la sesión de HIOFFICE (SSO) puede
+    // releer SOLO su propio cliente (resolverTenant lo acota al tenant de la sesión).
     const s = await sesionActual()
-    if (s?.rol !== 'SUPERADMIN') return NextResponse.json({ error: 'Requiere super admin.' }, { status: 403 })
+    if (!s || (s.rol !== 'SUPERADMIN' && s.via !== 'hio'))
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
     const { tenant, periodo } = (await req.json()) as { tenant?: string; periodo?: string }
     if (!periodo || !/^\d{4}-\d{2}$/.test(periodo))
       return NextResponse.json({ error: 'Período inválido.' }, { status: 400 })

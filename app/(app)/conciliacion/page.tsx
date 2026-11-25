@@ -120,6 +120,9 @@ function mover(periodo: string, delta: number): string {
 export default function ConciliacionPage() {
   const sesion = useSesion()
   const esCliente = sesion?.rol === 'CLIENTE'
+  // Releer datos propios (HIOPOS/Clover) es no destructivo y queda acotado al
+  // tenant: lo puede hacer el super admin y la sesión embebida de HIOFFICE (SSO).
+  const puedeReleer = sesion?.rol === 'SUPERADMIN' || sesion?.via === 'hio'
   const [clientes, setClientes] = useState<string[]>([])
   const [tenant, setTenant] = useState('')
   const [periodo, setPeriodo] = useState(mesActual())
@@ -410,7 +413,7 @@ export default function ConciliacionPage() {
           )}
         </div>
 
-        {tenant && !esCliente && (
+        {tenant && puedeReleer && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <button onClick={() => sincronizar('hiopos', 'Ventas HIOPOS')} disabled={!!sincro} className="pc-btn px-3 py-1.5 text-[11px] disabled:opacity-50">
               {sincro === 'hiopos' ? 'Trayendo…' : '↻ Ventas HIOPOS'}
@@ -422,7 +425,7 @@ export default function ConciliacionPage() {
                 </button>
               ) : null,
             )}
-            {archivoPas.map((p) => (
+            {!esCliente && archivoPas.map((p) => (
               <button
                 key={p.codigo}
                 onClick={() => pedirArchivo(p.codigo)}
@@ -433,15 +436,17 @@ export default function ConciliacionPage() {
                 ⬆ Importar {p.nombre}
               </button>
             ))}
-            <button
-              onClick={reconciliar}
-              disabled={!!sincro}
-              title="Recalcular el cruce sobre los datos ya cargados (sin volver a traer de HIOPOS/pasarela)"
-              className="rounded-lg border px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
-              style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
-            >
-              {sincro === 'reconciliar' ? 'Conciliando…' : '⟳ Re-conciliar'}
-            </button>
+            {!esCliente && (
+              <button
+                onClick={reconciliar}
+                disabled={!!sincro}
+                title="Recalcular el cruce sobre los datos ya cargados (sin volver a traer de HIOPOS/pasarela)"
+                className="rounded-lg border px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                style={{ borderColor: 'var(--border2)', color: 'var(--hio)' }}
+              >
+                {sincro === 'reconciliar' ? 'Conciliando…' : '⟳ Re-conciliar'}
+              </button>
+            )}
           </div>
         )}
       </div>

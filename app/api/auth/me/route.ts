@@ -9,5 +9,5 @@ export const dynamic = 'force-dynamic'
 export async function GET(): Promise<Response> {
   const s = await sesionActual()
   if (!s) return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 })
-  return NextResponse.json({ email: s.email, rol: s.rol, tenantNombre: s.tenantNombre })
+  return NextResponse.json({ email: s.email, rol: s.rol, tenantNombre: s.tenantNombre, via: s.via })
 }

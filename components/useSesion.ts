@@ -6,6 +6,7 @@ export interface SesionCliente {
   email: string
   rol: 'SUPERADMIN' | 'CLIENTE'
   tenantNombre: string | null
+  via?: 'hio' // 'hio' = sesión embebida desde el menú de HIOFFICE (SSO)
 }
 
 // Lee la sesión actual (rol + tenant) desde /api/auth/me para que las pantallas
